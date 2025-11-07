@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+
+body {
+  box-sizing: border-box;
+  font-family: 'Sarabun', 'Noto Sans Thai', sans-serif;
+}
+
+.offline-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.online {
+  background-color: #10b981;
+  color: white;
+}
+
+.offline {
+  background-color: #ef4444;
+  color: white;
+}
+
+.loading-spinner {
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 12px 24px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.toast.show {
+  opacity: 1;
+}
+
+.toast.success {
+  background-color: #10b981;
+}
+
+.toast.error {
+  background-color: #ef4444;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90%;
+  overflow-y: auto;
+}
+
+.tab-active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.menu-item-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.menu-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.order-item {
+  border-left: 4px solid #e5e7eb;
+  transition: border-color 0.3s ease;
+}
+
+.order-item.queued {
+  border-left-color: #f59e0b;
+}
+
+.order-item.in_progress {
+  border-left-color: #3b82f6;
+}
+
+.order-item.done {
+  border-left-color: #10b981;
+}
+
+.report-tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.report-tab.active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.report-tab:not(.active) {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.report-tab:not(.active):hover {
+  background-color: #e5e7eb;
+}
