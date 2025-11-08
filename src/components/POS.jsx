@@ -60,36 +60,43 @@ const POS = () => {
   const [discountInput, setDiscountInput] = useState('0');
   const [extraFeeInput, setExtraFeeInput] = useState('0'); // e.g., service charge or other fee
 
-  // Load data from Supabase
+  // Load data from Supabase with performance optimizations
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Load data in parallel but with pagination for orders
         const [categoriesData, menuItemsData, paymentMethodsData] = await Promise.all([
           DataService.getMenuCategories(),
           DataService.getMenuItems(),
           DataService.getPaymentMethods()
         ]);
-        setCategories(categoriesData);
-        setMenuItems(menuItemsData);
-        setPaymentMethods(paymentMethodsData);
+        
+        setCategories(categoriesData || []);
+        setMenuItems(menuItemsData || []);
+        setPaymentMethods(paymentMethodsData || []);
         
         // Set default payment method if available
-        if (paymentMethodsData.length > 0) {
+        if (paymentMethodsData && paymentMethodsData.length > 0) {
           setSelectedPaymentMethod(paymentMethodsData[0].id);
         }
       } catch (error) {
         console.error('Error loading data:', error);
+        toast.error('ไม่สามารถโหลดข้อมูลได้');
       }
     };
 
     loadData();
+    
     const socket = socketService.connectSocket();
     socket.on('order:updated', async () => {
       try {
         const paymentMethodsData = await DataService.getPaymentMethods();
-        setPaymentMethods(paymentMethodsData);
-      } catch {}
+        setPaymentMethods(paymentMethodsData || []);
+      } catch (error) {
+        console.error('Error updating payment methods:', error);
+      }
     });
+    
     return () => {
       socket.off('order:updated');
     };

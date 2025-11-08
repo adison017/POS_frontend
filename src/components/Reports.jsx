@@ -251,141 +251,205 @@ const Reports = () => {
     }
   };
 
-  // Calculate dashboard data
+  // Calculate dashboard data with improved error handling
   const calculateDashboardData = () => {
-    const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
-    
-    const todayOrders = orders.filter(order => 
-      order.status === 'paid' && 
-      new Date(order.created_at).toDateString() === today
-    );
-    
-    const yesterdayOrders = orders.filter(order => 
-      order.status === 'paid' && 
-      new Date(order.created_at).toDateString() === yesterday
-    );
-    
-    const todaySales = todayOrders.reduce((sum, order) => sum + (order.grand_total || 0), 0);
-    const yesterdaySales = yesterdayOrders.reduce((sum, order) => sum + (order.grand_total || 0), 0);
-    
-    const todayOrderCount = todayOrders.length;
-    const yesterdayOrderCount = yesterdayOrders.length;
-    
-    const avgOrderValue = todayOrderCount > 0 ? todaySales / todayOrderCount : 0;
-    const yesterdayAvgOrderValue = yesterdayOrderCount > 0 ? yesterdaySales / yesterdayOrderCount : 0;
-    
-    // Calculate net profit (simplified)
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const totalIncome = income.reduce((sum, inc) => sum + inc.amount, 0);
-    const netProfit = todaySales - totalExpenses + totalIncome;
-    const profitMargin = todaySales > 0 ? (netProfit / todaySales) * 100 : 0;
-    
-    // Calculate actual top menus based on order items with date filtering
-    const getMenuSalesStats = () => {
-      // Create a map to store menu item statistics
-      const menuStats = new Map();
+    try {
+      // Ensure we have valid data
+      const validOrders = Array.isArray(orders) ? orders.filter(Boolean) : [];
+      const validExpenses = Array.isArray(expenses) ? expenses.filter(Boolean) : [];
+      const validIncome = Array.isArray(income) ? income.filter(Boolean) : [];
+      const validOrderItems = Array.isArray(orderItems) ? orderItems.filter(Boolean) : [];
       
-      // Get relevant orders based on date filter
-      let relevantOrders = [];
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
       
-      if (topMenusDateFilter === 'today') {
-        // Get today's paid orders only
-        relevantOrders = orders.filter(order => 
-          order.status === 'paid' && 
-          new Date(order.created_at).toDateString() === today
-        );
-      } else if (topMenusDateFilter === 'thisWeek') {
-        // Get this week's paid orders
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        relevantOrders = orders.filter(order => {
-          const orderDate = new Date(order.created_at);
-          return order.status === 'paid' && orderDate >= oneWeekAgo;
-        });
-      } else if (topMenusDateFilter === 'thisMonth') {
-        // Get this month's paid orders
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        relevantOrders = orders.filter(order => {
-          const orderDate = new Date(order.created_at);
-          return order.status === 'paid' && orderDate >= startOfMonth;
-        });
-      } else if (topMenusDateFilter === 'custom') {
-        // Get custom date range orders
-        const startDate = new Date(customTopMenusDateRange.start);
-        const endDate = new Date(customTopMenusDateRange.end);
+      const todayOrders = validOrders.filter(order => 
+        order.status === 'paid' && 
+        new Date(order.created_at).toDateString() === today
+      );
+      
+      const yesterdayOrders = validOrders.filter(order => 
+        order.status === 'paid' && 
+        new Date(order.created_at).toDateString() === yesterday
+      );
+      
+      const todaySales = todayOrders.reduce((sum, order) => sum + (Number(order.grand_total) || 0), 0);
+      const yesterdaySales = yesterdayOrders.reduce((sum, order) => sum + (Number(order.grand_total) || 0), 0);
+      
+      const todayOrderCount = todayOrders.length;
+      const yesterdayOrderCount = yesterdayOrders.length;
+      
+      const avgOrderValue = todayOrderCount > 0 ? todaySales / todayOrderCount : 0;
+      const yesterdayAvgOrderValue = yesterdayOrderCount > 0 ? yesterdaySales / yesterdayOrderCount : 0;
+      
+      // Calculate net profit (simplified) - FOR SELECTED DATE RANGE
+      const filteredExpenses = validExpenses.filter(exp => {
+        const expDate = new Date(exp.created_at);
+        const startDate = new Date(salesDateRange.start);
+        const endDate = new Date(salesDateRange.end);
         endDate.setHours(23, 59, 59, 999);
-        
-        relevantOrders = orders.filter(order => {
-          const orderDate = new Date(order.created_at);
-          return order.status === 'paid' && orderDate >= startDate && orderDate <= endDate;
-        });
-      }
-      
-      // Process each order item to calculate stats
-      relevantOrders.forEach(order => {
-        const items = orderItems.filter(item => item.order_id === order.id);
-        items.forEach(item => {
-          if (menuStats.has(item.item_id)) {
-            // Update existing menu item stats
-            const stats = menuStats.get(item.item_id);
-            stats.qty += item.qty;
-            stats.revenue += item.total_price;
-          } else {
-            // Add new menu item stats
-            menuStats.set(item.item_id, {
-              id: item.item_id,
-              name: item.name,
-              qty: item.qty,
-              revenue: item.total_price
-            });
-          }
-        });
+        return expDate >= startDate && expDate <= endDate;
       });
       
-      // Convert map to array and sort by quantity (descending)
-      const sortedMenus = Array.from(menuStats.values())
-        .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue) // Sort by qty first, then by revenue
-        .slice(0, 5); // Take top 5
+      const filteredIncome = validIncome.filter(inc => {
+        const incDate = new Date(inc.created_at);
+        const startDate = new Date(salesDateRange.start);
+        const endDate = new Date(salesDateRange.end);
+        endDate.setHours(23, 59, 59, 999);
+        return incDate >= startDate && incDate <= endDate;
+      });
       
-      return sortedMenus;
-    };
-    
-    const topMenus = getMenuSalesStats();
-    
-    // Payment methods with counts and amounts
-    const paymentMethods = todayOrders.reduce((acc, order) => {
-      const method = order.payment_method || 'ไม่ระบุ';
-      if (!acc[method]) {
-        acc[method] = { count: 0, amount: 0 };
-      }
-      acc[method].count += 1;
-      acc[method].amount += order.grand_total || 0;
-      return acc;
-    }, {});
+      const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+      const totalIncome = filteredIncome.reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0);
+      const netProfit = todaySales - totalExpenses + totalIncome;
+      const profitMargin = todaySales > 0 ? (netProfit / todaySales) * 100 : 0;
+      
+      // Calculate actual top menus based on order items with date filtering
+      const getMenuSalesStats = () => {
+        try {
+          // Create a map to store menu item statistics
+          const menuStats = new Map();
+          
+          // Get relevant orders based on date filter
+          let relevantOrders = [];
+          
+          if (topMenusDateFilter === 'today') {
+            // Get today's paid orders only
+            relevantOrders = validOrders.filter(order => 
+              order.status === 'paid' && 
+              new Date(order.created_at).toDateString() === today
+            );
+          } else if (topMenusDateFilter === 'thisWeek') {
+            // Get this week's paid orders
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            relevantOrders = validOrders.filter(order => {
+              const orderDate = new Date(order.created_at);
+              return order.status === 'paid' && orderDate >= oneWeekAgo;
+            });
+          } else if (topMenusDateFilter === 'thisMonth') {
+            // Get this month's paid orders
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            relevantOrders = validOrders.filter(order => {
+              const orderDate = new Date(order.created_at);
+              return order.status === 'paid' && orderDate >= startOfMonth;
+            });
+          } else if (topMenusDateFilter === 'custom') {
+            // Get custom date range orders
+            const startDate = new Date(customTopMenusDateRange.start);
+            const endDate = new Date(customTopMenusDateRange.end);
+            endDate.setHours(23, 59, 59, 999);
+            
+            relevantOrders = validOrders.filter(order => {
+              const orderDate = new Date(order.created_at);
+              return order.status === 'paid' && orderDate >= startDate && orderDate <= endDate;
+            });
+          }
+          
+          // Process each order item to calculate stats
+          relevantOrders.forEach(order => {
+            const items = validOrderItems.filter(item => item.order_id === order.id);
+            items.forEach(item => {
+              if (menuStats.has(item.item_id)) {
+                // Update existing menu item stats
+                const stats = menuStats.get(item.item_id);
+                stats.qty += Number(item.qty) || 0;
+                stats.revenue += Number(item.total_price) || 0;
+              } else {
+                // Add new menu item stats
+                menuStats.set(item.item_id, {
+                  id: item.item_id,
+                  name: item.name || 'ไม่ระบุ',
+                  qty: Number(item.qty) || 0,
+                  revenue: Number(item.total_price) || 0
+                });
+              }
+            });
+          });
+          
+          // Convert map to array and sort by quantity (descending)
+          const sortedMenus = Array.from(menuStats.values())
+            .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue) // Sort by qty first, then by revenue
+            .slice(0, 5); // Take top 5
+          
+          return sortedMenus;
+        } catch (error) {
+          console.error('Error calculating menu sales stats:', error);
+          return [];
+        }
+      };
+      
+      const topMenus = getMenuSalesStats();
+      
+      // Payment methods with counts and amounts - ONLY FOR TODAY
+      const paymentMethods = todayOrders.reduce((acc, order) => {
+        const method = order.payment_method || 'ไม่ระบุ';
+        if (!acc[method]) {
+          acc[method] = { count: 0, amount: 0 };
+        }
+        acc[method].count += 1;
+        acc[method].amount += Number(order.grand_total) || 0;
+        return acc;
+      }, {});
 
-    const paymentMethodsArray = Object.entries(paymentMethods).map(([method, data]) => ({
-      method,
-      count: data.count,
-      amount: data.amount
-    }));
+      const paymentMethodsArray = Object.entries(paymentMethods).map(([method, data]) => ({
+        method,
+        count: data.count,
+        amount: data.amount
+      }));
 
-    return {
-      todaySales,
-      yesterdaySales,
-      todayOrders: todayOrderCount,
-      yesterdayOrders: yesterdayOrderCount,
-      avgOrderValue,
-      yesterdayAvgOrderValue,
-      netProfit,
-      profitMargin,
-      topMenus,
-      paymentMethods: paymentMethodsArray
-    };
+      return {
+        todaySales,
+        yesterdaySales,
+        todayOrders: todayOrderCount,
+        yesterdayOrders: yesterdayOrderCount,
+        avgOrderValue,
+        yesterdayAvgOrderValue,
+        netProfit,
+        profitMargin,
+        topMenus,
+        paymentMethods: paymentMethodsArray,
+        // Add filtered data
+        filteredExpenses,
+        filteredIncome
+      };
+    } catch (error) {
+      console.error('Error calculating dashboard data:', error);
+      // Return safe defaults
+      return {
+        todaySales: 0,
+        yesterdaySales: 0,
+        todayOrders: 0,
+        yesterdayOrders: 0,
+        avgOrderValue: 0,
+        yesterdayAvgOrderValue: 0,
+        netProfit: 0,
+        profitMargin: 0,
+        topMenus: [],
+        paymentMethods: [],
+        todayExpenses: [],
+        todayIncome: []
+      };
+    }
   };
 
   const dashboardData = calculateDashboardData();
+  // Ensure dashboardData has default values if calculation fails
+  const safeDashboardData = {
+    todaySales: dashboardData?.todaySales || 0,
+    yesterdaySales: dashboardData?.yesterdaySales || 0,
+    todayOrders: dashboardData?.todayOrders || 0,
+    yesterdayOrders: dashboardData?.yesterdayOrders || 0,
+    avgOrderValue: dashboardData?.avgOrderValue || 0,
+    yesterdayAvgOrderValue: dashboardData?.yesterdayAvgOrderValue || 0,
+    netProfit: dashboardData?.netProfit || 0,
+    profitMargin: dashboardData?.profitMargin || 0,
+    topMenus: Array.isArray(dashboardData?.topMenus) ? dashboardData.topMenus : [],
+    paymentMethods: Array.isArray(dashboardData?.paymentMethods) ? dashboardData.paymentMethods : [],
+    filteredExpenses: Array.isArray(dashboardData?.filteredExpenses) ? dashboardData.filteredExpenses : [],
+    filteredIncome: Array.isArray(dashboardData?.filteredIncome) ? dashboardData.filteredIncome : []
+  };
   
   // Periodic sales summaries: day, week, month, year
   const getSalesForPeriod = (period) => {
@@ -491,6 +555,13 @@ const Reports = () => {
     return { periodSales, periodOrderCount, periodAvg, periodNetProfit };
   };
   const periodMetrics = computeDashboardPeriodMetrics();
+  // Ensure periodMetrics has default values
+  const safePeriodMetrics = {
+    periodSales: periodMetrics?.periodSales || 0,
+    periodOrderCount: periodMetrics?.periodOrderCount || 0,
+    periodAvg: periodMetrics?.periodAvg || 0,
+    periodNetProfit: periodMetrics?.periodNetProfit || 0
+  };
   
   // --------- Simple Charts (no external libs) ---------
   // Build 7-day sales data
@@ -546,16 +617,16 @@ const Reports = () => {
     );
   };
   
-  const salesGrowth = dashboardData.yesterdaySales > 0 
-    ? ((dashboardData.todaySales - dashboardData.yesterdaySales) / dashboardData.yesterdaySales * 100) 
+  const salesGrowth = safeDashboardData.yesterdaySales > 0 
+    ? ((safeDashboardData.todaySales - safeDashboardData.yesterdaySales) / safeDashboardData.yesterdaySales * 100) 
     : 0;
     
-  const ordersGrowth = dashboardData.yesterdayOrders > 0 
-    ? ((dashboardData.todayOrders - dashboardData.yesterdayOrders) / dashboardData.yesterdayOrders * 100) 
+  const ordersGrowth = safeDashboardData.yesterdayOrders > 0 
+    ? ((safeDashboardData.todayOrders - safeDashboardData.yesterdayOrders) / safeDashboardData.yesterdayOrders * 100) 
     : 0;
     
-  const avgGrowth = dashboardData.yesterdayAvgOrderValue > 0 
-    ? ((dashboardData.avgOrderValue - dashboardData.yesterdayAvgOrderValue) / dashboardData.yesterdayAvgOrderValue * 100) 
+  const avgGrowth = safeDashboardData.yesterdayAvgOrderValue > 0 
+    ? ((safeDashboardData.avgOrderValue - safeDashboardData.yesterdayAvgOrderValue) / safeDashboardData.yesterdayAvgOrderValue * 100) 
     : 0;
 
   return (
@@ -683,19 +754,19 @@ const Reports = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-blue-700 font-medium mb-1">ยอดขายรวม (ช่วงที่เลือก)</p>
-                <h3 className="text-2xl font-bold text-blue-900">{formatCurrency(periodMetrics.periodSales)}</h3>
+                <h3 className="text-2xl font-bold text-blue-900">{formatCurrency(safePeriodMetrics.periodSales)}</h3>
               </div>
               <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-emerald-700 font-medium mb-1">จำนวนออเดอร์</p>
-                <h3 className="text-2xl font-bold text-emerald-900">{periodMetrics.periodOrderCount}</h3>
+                <h3 className="text-2xl font-bold text-emerald-900">{safePeriodMetrics.periodOrderCount}</h3>
               </div>
               <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-amber-700 font-medium mb-1">ค่าเฉลี่ยต่อออเดอร์</p>
-                <h3 className="text-2xl font-bold text-amber-900">{formatCurrency(periodMetrics.periodAvg)}</h3>
+                <h3 className="text-2xl font-bold text-amber-900">{formatCurrency(safePeriodMetrics.periodAvg)}</h3>
               </div>
               <div className="bg-gradient-to-br from-fuchsia-50 to-fuchsia-100 border border-fuchsia-200 rounded-xl p-5 shadow-sm">
                 <p className="text-sm text-fuchsia-700 font-medium mb-1">กำไรสุทธิ</p>
-                <h3 className="text-2xl font-bold text-fuchsia-900">{formatCurrency(periodMetrics.periodNetProfit)}</h3>
+                <h3 className="text-2xl font-bold text-fuchsia-900">{formatCurrency(safePeriodMetrics.periodNetProfit)}</h3>
               </div>
             </div>
 
@@ -713,7 +784,7 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-blue-600 font-medium mb-1">ยอดขายวันนี้</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(dashboardData.todaySales)}</h3>
+                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(safeDashboardData.todaySales)}</h3>
                   </div>
                   <div className="p-2 bg-blue-100 rounded-lg">
                     <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -733,7 +804,7 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-green-600 font-medium mb-1">ออเดอร์วันนี้</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{dashboardData.todayOrders}</h3>
+                    <h3 className="text-2xl font-bold text-gray-800">{safeDashboardData.todayOrders}</h3>
                   </div>
                   <div className="p-2 bg-green-100 rounded-lg">
                     <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -753,7 +824,7 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-amber-600 font-medium mb-1">เฉลี่ยต่อออเดอร์</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(dashboardData.avgOrderValue)}</h3>
+                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(safeDashboardData.avgOrderValue)}</h3>
                   </div>
                   <div className="p-2 bg-amber-100 rounded-lg">
                     <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -773,7 +844,7 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm text-purple-600 font-medium mb-1">กำไรสุทธิ</p>
-                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(dashboardData.netProfit)}</h3>
+                    <h3 className="text-2xl font-bold text-gray-800">{formatCurrency(safeDashboardData.netProfit)}</h3>
                   </div>
                   <div className="p-2 bg-purple-100 rounded-lg">
                     <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -782,7 +853,7 @@ const Reports = () => {
                   </div>
                 </div>
                 <div className="flex items-center mt-3 text-sm text-gray-600">
-                  Margin: {dashboardData.profitMargin.toFixed(1)}%
+                  Margin: {safeDashboardData.profitMargin.toFixed(1)}%
                 </div>
               </div>
             </div>
@@ -825,8 +896,8 @@ const Reports = () => {
                   </div>
                 </div>
                 <div className="space-y-4">
-                  {dashboardData.topMenus.length > 0 ? (
-                    dashboardData.topMenus.map((menu, index) => {
+                  {safeDashboardData.topMenus.length > 0 ? (
+                    safeDashboardData.topMenus.map((menu, index) => {
                       // Find the full menu item data to get the image
                       const fullMenuItem = menuItems.find(item => item.id === menu.id);
                       
@@ -870,8 +941,8 @@ const Reports = () => {
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                 <h4 className="font-bold text-gray-800 mb-4">วิธีการชำระเงิน</h4>
                 <div className="space-y-4">
-                  {dashboardData.paymentMethods.length > 0 ? (
-                    dashboardData.paymentMethods.map((payment, index) => (
+                  {safeDashboardData.paymentMethods.length > 0 ? (
+                    safeDashboardData.paymentMethods.map((payment, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <div className="flex items-center">
                           <span className="mr-3 text-gray-500">
@@ -1082,22 +1153,110 @@ const Reports = () => {
                 </div>
               </div>
             </div>
+            {/* Date Filter for Finance Report */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <h4 className="text-md font-bold text-gray-800">กรองข้อมูลตามช่วงเวลา</h4>
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  value={salesPeriodMode}
+                  onChange={(e) => setSalesPeriodMode(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="day">เลือกวัน</option>
+                  <option value="week">เลือกสัปดาห์</option>
+                  <option value="month">เลือกเดือน</option>
+                  <option value="year">เลือกปี</option>
+                  <option value="custom">กำหนดเอง</option>
+                </select>
+
+                {salesPeriodMode === 'day' && (
+                  <input
+                    type="date"
+                    value={selectedDay}
+                    onChange={(e) => setSelectedDay(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                )}
+
+                {salesPeriodMode === 'week' && (
+                  <input
+                    type="week"
+                    value={selectedWeek}
+                    onChange={(e) => setSelectedWeek(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                )}
+
+                {salesPeriodMode === 'month' && (
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                )}
+
+                {salesPeriodMode === 'year' && (
+                  <input
+                    type="number"
+                    min="2000"
+                    max="2100"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-28 px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                )}
+
+                {salesPeriodMode === 'custom' && (
+                  <>
+                    <input 
+                      type="date" 
+                      value={salesDateRange.start}
+                      onChange={(e) => setSalesDateRange({...salesDateRange, start: e.target.value})}
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <span className="flex items-center text-gray-500">ถึง</span>
+                    <input 
+                      type="date" 
+                      value={salesDateRange.end}
+                      onChange={(e) => setSalesDateRange({...salesDateRange, end: e.target.value})}
+                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               {/* P&L Statement */}
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-xl border border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-4">งบกำไรขาดทุน (วันนี้)</h4>
+                <h4 className="font-bold text-gray-800 mb-4">งบกำไรขาดทุน (ช่วงเวลาที่เลือก)</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between py-2 border-b border-gray-200">
                     <span className="text-gray-700">รายรับจากการขาย</span>
-                    <span className="font-medium text-gray-800">{formatCurrency(dashboardData.todaySales)}</span>
+                    <span className="font-medium text-gray-800">{formatCurrency(safeDashboardData.todaySales)}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-gray-200">
                     <span className="text-gray-700">รายรับอื่นๆ</span>
-                    <span className="font-medium text-gray-800">{formatCurrency(income.reduce((sum, inc) => sum + inc.amount, 0))}</span>
+                    <span className="font-medium text-gray-800">{formatCurrency(Array.isArray(income) ? income.filter(inc => {
+                      const incDate = new Date(inc.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return incDate >= startDate && incDate <= endDate;
+                    }).reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0) : 0)}</span>
                   </div>
                   <div className="flex justify-between font-bold py-2 border-b border-gray-300">
                     <span className="text-gray-800">รายรับรวม</span>
-                    <span className="text-green-600">{formatCurrency(dashboardData.todaySales + income.reduce((sum, inc) => sum + inc.amount, 0))}</span>
+                    <span className="text-green-600">{formatCurrency(
+                      safeDashboardData.todaySales + 
+                      (Array.isArray(income) ? income.filter(inc => {
+                        const incDate = new Date(inc.created_at);
+                        const startDate = new Date(salesDateRange.start);
+                        const endDate = new Date(salesDateRange.end);
+                        endDate.setHours(23, 59, 59, 999);
+                        return incDate >= startDate && incDate <= endDate;
+                      }).reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0) : 0)
+                    )}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-gray-200 mt-3">
                     <span className="text-gray-700">ต้นทุนขาย (COGS)</span>
@@ -1105,15 +1264,27 @@ const Reports = () => {
                   </div>
                   <div className="flex justify-between py-2 border-b border-gray-200">
                     <span className="text-gray-700">ค่าใช้จ่ายดำเนินงาน</span>
-                    <span className="font-medium text-gray-800">{formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}</span>
+                    <span className="font-medium text-gray-800">{formatCurrency(Array.isArray(expenses) ? expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0) : 0)}</span>
                   </div>
                   <div className="flex justify-between font-bold py-2 border-b border-gray-300">
                     <span className="text-gray-800">ค่าใช้จ่ายรวม</span>
-                    <span className="text-red-600">{formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}</span>
+                    <span className="text-red-600">{formatCurrency(Array.isArray(expenses) ? expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0) : 0)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg py-3 border-t border-gray-400 mt-2">
                     <span className="text-gray-900">กำไรสุทธิ</span>
-                    <span className="text-blue-600">{formatCurrency(dashboardData.netProfit)}</span>
+                    <span className="text-blue-600">{formatCurrency(safeDashboardData.netProfit)}</span>
                   </div>
                 </div>
               </div>
@@ -1124,28 +1295,93 @@ const Reports = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-xl border border-green-100 text-center">
                     <p className="text-xs text-green-700 mb-1">Gross Margin</p>
-                    <p className="text-xl font-bold text-green-900">0%</p>
+                    <p className="text-xl font-bold text-green-900">{safeDashboardData.todaySales > 0 ? ((safeDashboardData.todaySales - (Array.isArray(expenses) ? expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0) : 0)) / safeDashboardData.todaySales * 100).toFixed(1) : '0'}%</p>
                   </div>
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 text-center">
                     <p className="text-xs text-blue-700 mb-1">Net Margin</p>
-                    <p className="text-xl font-bold text-blue-900">0%</p>
+                    <p className="text-xl font-bold text-blue-900">{safeDashboardData.todaySales > 0 ? (safeDashboardData.netProfit / safeDashboardData.todaySales * 100).toFixed(1) : '0'}%</p>
                   </div>
                   <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-4 rounded-xl border border-yellow-100 text-center">
                     <p className="text-xs text-yellow-700 mb-1">รายรับเฉลี่ย/วัน</p>
-                    <p className="text-xl font-bold text-yellow-900">{formatCurrency(income.length > 0 ? income.reduce((sum, inc) => sum + inc.amount, 0) / income.length : 0)}</p>
+                    <p className="text-xl font-bold text-yellow-900">{formatCurrency(Array.isArray(income) && income.filter(inc => {
+                      const incDate = new Date(inc.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return incDate >= startDate && incDate <= endDate;
+                    }).length > 0 ? income.filter(inc => {
+                      const incDate = new Date(inc.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return incDate >= startDate && incDate <= endDate;
+                    }).reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0) / income.filter(inc => {
+                      const incDate = new Date(inc.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return incDate >= startDate && incDate <= endDate;
+                    }).length : 0)}</p>
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-fuchsia-50 p-4 rounded-xl border border-purple-100 text-center">
                     <p className="text-xs text-purple-700 mb-1">ค่าใช้จ่ายเฉลี่ย/วัน</p>
-                    <p className="text-xl font-bold text-purple-900">{formatCurrency(expenses.length > 0 ? expenses.reduce((sum, exp) => sum + exp.amount, 0) / expenses.length : 0)}</p>
+                    <p className="text-xl font-bold text-purple-900">{formatCurrency(Array.isArray(expenses) && expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).length > 0 ? expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0) / expenses.filter(exp => {
+                      const expDate = new Date(exp.created_at);
+                      const startDate = new Date(salesDateRange.start);
+                      const endDate = new Date(salesDateRange.end);
+                      endDate.setHours(23, 59, 59, 999);
+                      return expDate >= startDate && expDate <= endDate;
+                    }).length : 0)}</p>
                   </div>
                 </div>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl p-5 border border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-4">รายรับอื่นๆ (วันนี้)</h4>
+                <h4 className="font-bold text-gray-800 mb-4">รายรับอื่นๆ (ช่วงเวลาที่เลือก)</h4>
                 <div className="space-y-3">
-                  {income.length === 0 ? (
+                  {Array.isArray(income) ? income.filter(inc => {
+                    const incDate = new Date(inc.created_at);
+                    const startDate = new Date(salesDateRange.start);
+                    const endDate = new Date(salesDateRange.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    return incDate >= startDate && incDate <= endDate;
+                  }).map((inc, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{inc.category}</h4>
+                        <p className="text-sm text-gray-600 truncate max-w-[150px]">{inc.note}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-gray-800">{formatCurrency(inc.amount)}</p>
+                      </div>
+                    </div>
+                  )) : []}
+                  {Array.isArray(income) && income.filter(inc => {
+                    const incDate = new Date(inc.created_at);
+                    const startDate = new Date(salesDateRange.start);
+                    const endDate = new Date(salesDateRange.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    return incDate >= startDate && incDate <= endDate;
+                  }).length === 0 && (
                     <div className="text-center py-6">
                       <div className="text-gray-400 mb-2">
                         <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1154,25 +1390,36 @@ const Reports = () => {
                       </div>
                       <p className="text-gray-500">ยังไม่มีข้อมูลรายรับ</p>
                     </div>
-                  ) : (
-                    income.map((inc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div>
-                          <h4 className="font-semibold text-gray-800">{inc.category}</h4>
-                          <p className="text-sm text-gray-600 truncate max-w-[150px]">{inc.note}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-800">{formatCurrency(inc.amount)}</p>
-                        </div>
-                      </div>
-                    ))
                   )}
                 </div>
               </div>
               <div className="bg-white rounded-xl p-5 border border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-4">รายจ่าย (วันนี้)</h4>
+                <h4 className="font-bold text-gray-800 mb-4">รายจ่าย (ช่วงเวลาที่เลือก)</h4>
                 <div className="space-y-3">
-                  {expenses.length === 0 ? (
+                  {Array.isArray(expenses) ? expenses.filter(exp => {
+                    const expDate = new Date(exp.created_at);
+                    const startDate = new Date(salesDateRange.start);
+                    const endDate = new Date(salesDateRange.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    return expDate >= startDate && expDate <= endDate;
+                  }).map((exp, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{exp.category}</h4>
+                        <p className="text-sm text-gray-600 truncate max-w-[150px]">{exp.note}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-gray-800">{formatCurrency(exp.amount)}</p>
+                      </div>
+                    </div>
+                  )) : []}
+                  {Array.isArray(expenses) && expenses.filter(exp => {
+                    const expDate = new Date(exp.created_at);
+                    const startDate = new Date(salesDateRange.start);
+                    const endDate = new Date(salesDateRange.end);
+                    endDate.setHours(23, 59, 59, 999);
+                    return expDate >= startDate && expDate <= endDate;
+                  }).length === 0 && (
                     <div className="text-center py-6">
                       <div className="text-gray-400 mb-2">
                         <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1181,18 +1428,6 @@ const Reports = () => {
                       </div>
                       <p className="text-gray-500">ยังไม่มีข้อมูลรายจ่าย</p>
                     </div>
-                  ) : (
-                    expenses.map((exp, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div>
-                          <h4 className="font-semibold text-gray-800">{exp.category}</h4>
-                          <p className="text-sm text-gray-600 truncate max-w-[150px]">{exp.note}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-gray-800">{formatCurrency(exp.amount)}</p>
-                        </div>
-                      </div>
-                    ))
                   )}
                 </div>
               </div>

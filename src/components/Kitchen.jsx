@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { getOrders, getOrderItems, getKitchenTickets, updateKitchenTicket, getMenuItems } from '../services/dataService';
+import { getOrdersPage, getOrderItems, getKitchenTickets, updateKitchenTicket, getMenuItems } from '../services/dataService';
 import socketService from '../services/socket';
 
 const PurchaseHistory = () => {
@@ -14,29 +14,21 @@ const PurchaseHistory = () => {
   const [menuItems, setMenuItems] = useState([]); // Add state for menu items
   const [receiptPreviewMap, setReceiptPreviewMap] = useState({}); // orderId -> boolean
 
-  // โหลด Orders
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const ordersData = await getOrders();
-        setOrders(Array.isArray(ordersData) ? ordersData.filter(Boolean) : []);
-      } catch (error) {
-        console.error('Error loading orders:', error);
-        setOrders([]);
-      }
-    };
-
-    loadData();
-  }, []);
+  // Infinite scroll states
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [hasMoreOrders, setHasMoreOrders] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   // โหลด Menu Items
   useEffect(() => {
     const loadMenuItems = async () => {
       try {
         const menuItemsData = await getMenuItems();
-        setMenuItems(Array.isArray(menuItemsData) ? menuItemsData.filter(Boolean) : []);
+        const validMenuItems = Array.isArray(menuItemsData) ? menuItemsData.filter(Boolean) : [];
+        setMenuItems(validMenuItems);
       } catch (error) {
         console.error('Error loading menu items:', error);
+        toast.error('ไม่สามารถโหลดข้อมูลเมนูได้');
         setMenuItems([]);
       }
     };
@@ -44,44 +36,113 @@ const PurchaseHistory = () => {
     loadMenuItems();
   }, []);
 
-  // โหลด Order Items ต่อเมื่อมี orders
-  useEffect(() => {
-    const loadOrderItems = async () => {
-      if (!Array.isArray(orders) || orders.length === 0) {
-        setOrderItemsMap({});
-        return;
+  // โหลด Orders with infinite scroll
+  const loadOrders = useCallback(async (page = 0) => {
+    if (loadingOrders) return;
+    
+    setLoadingOrders(true);
+    try {
+      const limit = 20; // Load 20 orders at a time
+      const offset = page * limit;
+      
+      const ordersData = await getOrdersPage({ limit, offset });
+
+      // Ensure we have arrays before setting state
+      const validOrders = Array.isArray(ordersData) ? ordersData.filter(Boolean) : [];
+
+      if (page === 0) {
+        setOrders(validOrders);
+      } else {
+        setOrders(prev => [...prev, ...validOrders]);
       }
 
+      setHasMoreOrders(validOrders.length === limit);
+      setOrdersPage(page);
+      
+      // Load order items for new orders
+      if (validOrders.length > 0) {
+        const itemsArrays = await Promise.all(
+          validOrders.map((order) => getOrderItems(order.id))
+        );
+        
+        // Create items map
+        const newItemsMap = { ...orderItemsMap };
+        validOrders.forEach((order, index) => {
+          const items = itemsArrays[index] || [];
+          newItemsMap[order.id] = Array.isArray(items) ? items.filter(Boolean) : [];
+        });
+        
+        setOrderItemsMap(newItemsMap);
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast.error('ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+      setHasMoreOrders(false);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [loadingOrders, orderItemsMap]);
+
+  // โหลด Orders ครั้งแรก - add error handling
+  useEffect(() => {
+    let isMounted = true;
+    
+    const loadInitialOrders = async () => {
       try {
-        const itemsMap = {};
-        for (const order of orders.filter(Boolean)) {
-          if (!order?.id) continue;
-          const items = await getOrderItems(order.id);
-          itemsMap[order.id] = Array.isArray(items) ? items.filter(Boolean) : [];
+        if (isMounted) {
+          await loadOrders(0);
         }
-        setOrderItemsMap(itemsMap);
       } catch (error) {
-        console.error('Error loading order items:', error);
-        setOrderItemsMap({});
+        console.error('Error loading initial orders:', error);
+        if (isMounted) {
+          toast.error('ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+        }
       }
     };
+    
+    loadInitialOrders();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [loadOrders]);
 
-    loadOrderItems();
-  }, [orders]);
+  // Infinite scroll handler
+  const handleScroll = useCallback(() => {
+    if (!hasMoreOrders || loadingOrders) return;
+    
+    const scrollTop = document.documentElement.scrollTop;
+    const scrollHeight = document.documentElement.scrollHeight;
+    const clientHeight = document.documentElement.clientHeight;
+    
+    // Load more when user is 100px from bottom
+    if (scrollTop + clientHeight >= scrollHeight - 100) {
+      loadOrders(ordersPage + 1);
+    }
+  }, [hasMoreOrders, loadingOrders, ordersPage, loadOrders]);
+
+  // Add scroll event listener
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   // โหลด Kitchen Tickets
   useEffect(() => {
     const loadKitchenTickets = async () => {
       try {
         const tickets = await getKitchenTickets();
-        setKitchenTickets(Array.isArray(tickets) ? tickets.filter(Boolean) : []);
+        const validTickets = Array.isArray(tickets) ? tickets.filter(Boolean) : [];
+        setKitchenTickets(validTickets);
       } catch (error) {
         console.error('Error loading kitchen tickets:', error);
+        toast.error('ไม่สามารถโหลดข้อมูลตั๋วครัวได้');
         setKitchenTickets([]);
       }
     };
 
     loadKitchenTickets();
+    
     const socket = socketService.connectSocket();
     socket.on('kitchen-ticket:created', (ticket) => {
       setKitchenTickets((prev) => [ticket, ...prev]);
@@ -91,9 +152,13 @@ const PurchaseHistory = () => {
     });
     socket.on('order:created', async () => {
       try {
-        const ordersData = await getOrders();
-        setOrders(Array.isArray(ordersData) ? ordersData.filter(Boolean) : []);
-      } catch {}
+        // Reload only recent orders to maintain performance
+        const ordersData = await getOrdersPage({ limit: 20, offset: 0 });
+        const validOrders = Array.isArray(ordersData) ? ordersData.filter(Boolean) : [];
+        setOrders(validOrders);
+      } catch (error) {
+        console.error('Error reloading orders:', error);
+      }
     });
 
     return () => {

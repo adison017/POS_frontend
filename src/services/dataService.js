@@ -29,7 +29,9 @@ const errorResult = (error) => ({ error })
 export const getMenuCategories = async () =>
   withErrorHandling(
     async () => {
+      console.log('[dataService] Fetching menu categories')
       const { data } = await apiClient.get('/menu-categories')
+      console.log('[dataService] Menu categories fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -57,7 +59,9 @@ export const updateMenuCategory = async (id, updates) =>
 export const getMenuItems = async () =>
   withErrorHandling(
     async () => {
+      console.log('[dataService] Fetching menu items')
       const { data } = await apiClient.get('/menu-items')
+      console.log('[dataService] Menu items fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -85,18 +89,27 @@ export const updateMenuItem = async (id, updates) =>
 export const getOrders = async () =>
   withErrorHandling(
     async () => {
-      const { data } = await apiClient.get('/orders')
+      // Limit to 50 most recent orders by default to improve performance
+      console.log('[dataService] Fetching orders (default limit)')
+      const { data } = await apiClient.get('/orders', {
+        params: { limit: 50, offset: 0 }
+      })
+      console.log('[dataService] Orders fetched:', data)
       return ensureArray(data)
     },
     [],
   )
 
-export const getOrdersPage = async ({ limit = 50, offset = 0, from, to } = {}) =>
+export const getOrdersPage = async ({ limit = 20, offset = 0, from, to } = {}) =>
   withErrorHandling(
     async () => {
-      const { data } = await apiClient.get('/orders', {
-        params: { limit, offset, from, to },
-      })
+      const params = { limit, offset }
+      if (from) params.from = from
+      if (to) params.to = to
+      
+      console.log('[dataService] Fetching orders page:', { params })
+      const { data } = await apiClient.get('/orders', { params })
+      console.log('[dataService] Orders page fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -133,9 +146,12 @@ export const updateOrder = async (id, updates) =>
 export const getOrderItems = async (orderId) =>
   withErrorHandling(
     async () => {
+      if (!orderId) return []
+      console.log('[dataService] Fetching order items for order:', orderId)
       const { data } = await apiClient.get('/order-items', {
         params: { orderId },
       })
+      console.log('[dataService] Order items fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -151,10 +167,15 @@ export const createOrderItem = async (item) =>
   )
 
 // Kitchen Tickets
-export const getKitchenTickets = async () =>
+export const getKitchenTickets = async (limit = 100) =>
   withErrorHandling(
     async () => {
-      const { data } = await apiClient.get('/kitchen-tickets')
+      // Limit to specified number of most recent tickets by default to improve performance
+      console.log('[dataService] Fetching kitchen tickets')
+      const { data } = await apiClient.get('/kitchen-tickets', {
+        params: { limit }
+      })
+      console.log('[dataService] Kitchen tickets fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -182,7 +203,9 @@ export const updateKitchenTicket = async (id, updates) =>
 export const getPaymentMethods = async () =>
   withErrorHandling(
     async () => {
+      console.log('[dataService] Fetching payment methods')
       const { data } = await apiClient.get('/payment-methods')
+      console.log('[dataService] Payment methods fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -207,10 +230,15 @@ export const updatePaymentMethod = async (id, updates) =>
   )
 
 // Expenses
-export const getExpenses = async () =>
+export const getExpenses = async (limit = 100) =>
   withErrorHandling(
     async () => {
-      const { data } = await apiClient.get('/expenses')
+      // Limit to specified number of most recent expenses by default to improve performance
+      console.log('[dataService] Fetching expenses')
+      const { data } = await apiClient.get('/expenses', {
+        params: { limit }
+      })
+      console.log('[dataService] Expenses fetched:', data)
       return ensureArray(data)
     },
     [],
@@ -226,10 +254,15 @@ export const createExpense = async (expense) =>
   )
 
 // Income
-export const getIncome = async () =>
+export const getIncome = async (limit = 100) =>
   withErrorHandling(
     async () => {
-      const { data } = await apiClient.get('/income')
+      // Limit to specified number of most recent income records by default to improve performance
+      console.log('[dataService] Fetching income')
+      const { data } = await apiClient.get('/income', {
+        params: { limit }
+      })
+      console.log('[dataService] Income fetched:', data)
       return ensureArray(data)
     },
     [],

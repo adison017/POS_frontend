@@ -1,27 +1,60 @@
-import React, { useState } from 'react';
-import POS from './POS';
-import PurchaseHistory from './Kitchen'; // Changed from Kitchen to PurchaseHistory
-import Menu from './Menu';
-import Reports from './Reports';
-import SupabaseStorageManager from './SupabaseStorageManager';
+import React, { useState, Suspense, lazy } from 'react';
+
+// Lazy load components
+const POS = lazy(() => import('./POS'));
+const PurchaseHistory = lazy(() => import('./Kitchen')); // Changed from Kitchen to PurchaseHistory
+const Menu = lazy(() => import('./Menu'));
+const Reports = lazy(() => import('./Reports'));
+const SupabaseStorageManager = lazy(() => import('./SupabaseStorageManager'));
 
 const Layout = () => {
   const [activeTab, setActiveTab] = useState('pos');
 
   const renderActiveTab = () => {
+    // Loading fallback component
+    const LoadingFallback = () => (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+      </div>
+    );
+
     switch (activeTab) {
       case 'pos':
-        return <POS />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <POS />
+          </Suspense>
+        );
       case 'purchase-history': // Changed from 'kitchen'
-        return <PurchaseHistory />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <PurchaseHistory />
+          </Suspense>
+        );
       case 'menu':
-        return <Menu />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <Menu />
+          </Suspense>
+        );
       case 'report':
-        return <Reports />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <Reports />
+          </Suspense>
+        );
       case 'storage':
-        return <SupabaseStorageManager />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <SupabaseStorageManager />
+          </Suspense>
+        );
       default:
-        return <POS />;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <POS />
+          </Suspense>
+        );
     }
   };
 
