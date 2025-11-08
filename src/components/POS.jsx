@@ -507,25 +507,25 @@ const POS = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+    <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">ระบบขายหน้าร้าน (POS)</h1>
-          <p className="text-gray-600">จัดการออเดอร์และชำระเงินอย่างรวดเร็ว</p>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">ระบบขายหน้าร้าน (POS)</h1>
+          <p className="text-gray-600 text-sm sm:text-base">จัดการออเดอร์และชำระเงินอย่างรวดเร็ว</p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-full">
           {/* Menu Section */}
-          <div className="xl:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg p-6 h-full">
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 h-full">
               {/* Category Filter */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">เมนูอาหาร</h2>
-                <div className="flex flex-wrap gap-2">
+              <div className="mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">เมนูอาหาร</h2>
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   <button
                     onClick={() => setSelectedCategory('all')}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
                       selectedCategory === 'all'
                         ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
                         : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
@@ -537,7 +537,7 @@ const POS = () => {
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
+                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
                         selectedCategory === category.id
                           ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
                           : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
@@ -551,47 +551,47 @@ const POS = () => {
 
               {/* Menu Items Grid */}
               {filteredMenuItems.length === 0 ? (
-                <div className="text-center py-16">
+                <div className="text-center py-12 sm:py-16">
                   <div className="text-gray-300 mb-4">
-                    <svg className="w-20 h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-16 h-16 sm:w-20 sm:h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">ไม่มีรายการเมนู</h3>
-                  <p className="text-gray-500">กรุณาเพิ่มเมนูในหน้า "เมนู"</p>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">ไม่มีรายการเมนู</h3>
+                  <p className="text-gray-500 text-sm sm:text-base">กรุณาเพิ่มเมนูในหน้า "เมนู"</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
                   {filteredMenuItems.map(item => (
                     <button
                       key={item.id}
                       onClick={() => addToOrder(item.id)}
-                      className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-4 text-left border border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1"
+                      className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-3 sm:p-4 text-left border border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
-                      
+                    
                       {item.image_url ? (
-                        <div className="relative overflow-hidden rounded-xl mb-3">
+                        <div className="relative overflow-hidden rounded-xl mb-2 sm:mb-3">
                           <img 
                             src={item.image_url} 
                             alt={item.name}
-                            className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-500"
+                            className="w-full h-24 sm:h-32 object-cover group-hover:scale-110 transition-transform duration-500"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         </div>
                       ) : (
-                        <div className="w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-3 flex items-center justify-center relative overflow-hidden">
+                        <div className="w-full h-24 sm:h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-2 sm:mb-3 flex items-center justify-center relative overflow-hidden">
                           <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200"></div>
-                          <svg className="w-12 h-12 text-gray-300 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-300 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                           </svg>
                         </div>
                       )}
-                      
+                    
                       <div className="relative z-10 flex flex-col flex-grow">
-                        <h3 className="font-bold text-gray-800 group-hover:text-indigo-600 text-sm leading-tight mb-2 line-clamp-2 flex-grow">{item.name}</h3>
-                        <div className="mt-auto pt-2 flex items-center justify-between">
-                          <span className="font-bold text-lg text-emerald-600 whitespace-nowrap truncate block">{formatCurrency(item.price)}</span>
+                        <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 text-sm leading-tight mb-2 line-clamp-2 flex-grow">{item.name}</h3>
+                        <div className="mt-auto pt-1 sm:pt-2 flex items-center justify-between">
+                          <span className="font-bold text-base sm:text-lg text-emerald-600 whitespace-nowrap truncate block">{formatCurrency(item.price)}</span>
                           <div className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             เพิ่ม
                           </div>
@@ -605,73 +605,73 @@ const POS = () => {
           </div>
 
           {/* Order Section */}
-          <div className="xl:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6 h-full flex flex-col">
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 h-full flex flex-col">
               {/* Order Header */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">ออเดอร์ปัจจุบัน</h2>
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">ออเดอร์ปัจจุบัน</h2>
                 {currentOrder.items.length > 0 && (
-                  <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-md">
+                  <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-md">
                     #{`ORD${String(currentOrderNumber).padStart(4, '0')}`}
                   </div>
                 )}
               </div>
-              
+            
               {currentOrder.items.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
-                  <div className="text-gray-200 mb-6">
-                    <svg className="w-24 h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-8 sm:py-12">
+                  <div className="text-gray-200 mb-4 sm:mb-6">
+                    <svg className="w-16 h-16 sm:w-24 sm:h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                     </svg>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">ยังไม่มีรายการ</h3>
-                  <p className="text-gray-500 mb-4">เพิ่มรายการจากเมนูด้านซ้าย</p>
-                  <div className="text-gray-400 text-sm">
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-1 sm:mb-2">ยังไม่มีรายการ</h3>
+                  <p className="text-gray-500 mb-3 sm:mb-4 text-sm sm:text-base">เพิ่มรายการจากเมนูด้านซ้าย</p>
+                  <div className="text-gray-400 text-xs sm:text-sm">
                     คลิกที่เมนูอาหารเพื่อเพิ่มลงในออเดอร์
                   </div>
                 </div>
               ) : (
                 <>
                   {/* Order Items */}
-                  <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar mb-6">
+                  <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar mb-4 sm:mb-6">
                     {currentOrder.items.map((item) => (
                       <div
                         key={item.id}
-                        className="p-4 bg-gray-50 rounded-xl mb-3 last:mb-0 border border-gray-100 hover:border-gray-200 transition-colors duration-200"
+                        className="p-3 sm:p-4 bg-gray-50 rounded-xl mb-2 sm:mb-3 last:mb-0 border border-gray-100 hover:border-gray-200 transition-colors duration-200"
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <h3 className="font-semibold text-gray-800 truncate pr-2 flex-1 min-w-0">{item.name}</h3>
-                          <span className="font-bold text-gray-800 text-lg whitespace-nowrap">{formatCurrency(item.total)}</span>
+                        <div className="flex items-start justify-between gap-2 sm:gap-3">
+                          <h3 className="font-semibold text-gray-800 truncate pr-2 flex-1 min-w-0 text-sm sm:text-base">{item.name}</h3>
+                          <span className="font-bold text-gray-800 text-base sm:text-lg whitespace-nowrap">{formatCurrency(item.total)}</span>
                         </div>
-                        <div className="mt-3 space-y-2">
+                        <div className="mt-2 sm:mt-3 space-y-2">
                           {/* Qty controls */}
-                          <div className="flex items-center justify-between sm:justify-start gap-3">
-                            <span className="text-sm text-gray-500 whitespace-nowrap">{formatCurrency(item.price)} × {item.qty}</span>
-                            <div className="flex items-center bg-white border border-gray-200 rounded-xl overflow-hidden">
+                          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
+                            <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">{formatCurrency(item.price)} × {item.qty}</span>
+                            <div className="flex items-center bg-white border border-gray-200 rounded-lg sm:rounded-xl overflow-hidden">
                               <button
                                 onClick={() => updateItemQuantity(item.id, 'decrease')}
-                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
+                                className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
                                 aria-label="decrease quantity"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"/></svg>
+                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"/></svg>
                               </button>
-                              <span className="px-3 py-1 text-sm font-bold text-gray-700 min-w-8 text-center">{item.qty}</span>
+                              <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-gray-700 min-w-6 sm:min-w-8 text-center">{item.qty}</span>
                               <button
                                 onClick={() => updateItemQuantity(item.id, 'increase')}
-                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
+                                className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
                                 aria-label="increase quantity"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                               </button>
                             </div>
                           </div>
                           {/* Quick price adjust moved to bottom */}
                           <div className="flex items-center flex-wrap gap-1 justify-end sm:justify-start">
-                            <span className="text-sm text-gray-400 mr-1">ปรับราคา:</span>
-                            <button onClick={() => adjustLinePrice(item.id, -10)} className="px-2 py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-10</button>
-                            <button onClick={() => adjustLinePrice(item.id, -5)} className="px-2 py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-5</button>
-                            <button onClick={() => adjustLinePrice(item.id, 5)} className="px-2 py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+5</button>
-                            <button onClick={() => adjustLinePrice(item.id, 10)} className="px-2 py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+10</button>
+                            <span className="text-xs text-gray-400 mr-1">ปรับราคา:</span>
+                            <button onClick={() => adjustLinePrice(item.id, -10)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-10</button>
+                            <button onClick={() => adjustLinePrice(item.id, -5)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-5</button>
+                            <button onClick={() => adjustLinePrice(item.id, 5)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+5</button>
+                            <button onClick={() => adjustLinePrice(item.id, 10)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+10</button>
                           </div>
                         </div>
                       </div>
@@ -679,29 +679,29 @@ const POS = () => {
                   </div>
 
                   {/* Order Summary */}
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 mb-6 border border-gray-200">
-                    <div className="space-y-3">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200">
+                    <div className="space-y-2 sm:space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">รวมย่อย:</span>
-                        <span className="font-semibold text-gray-800">{formatCurrency(currentOrder.subtotal)}</span>
+                        <span className="text-gray-600 text-sm sm:text-base">รวมย่อย:</span>
+                        <span className="font-semibold text-gray-800 text-sm sm:text-base">{formatCurrency(currentOrder.subtotal)}</span>
                       </div>
                       {/* Adjustments */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-3 sm:gap-4">
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">ส่วนลด</label>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700">ส่วนลด</label>
                           <div className="flex items-stretch gap-2">
                             <input
                               type="number"
                               step="0.01"
                               value={discountInput}
                               onChange={(e) => setDiscountInput(e.target.value)}
-                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                               placeholder="0"
                             />
                             <select
                               value={discountType}
                               onChange={(e) => setDiscountType(e.target.value)}
-                              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                               aria-label="หน่วยส่วนลด"
                             >
                               <option value="amount">บาท</option>
@@ -710,50 +710,50 @@ const POS = () => {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">ค่าอื่น ๆ</label>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700">ค่าอื่น ๆ</label>
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
                               step="0.01"
                               value={extraFeeInput}
                               onChange={(e) => setExtraFeeInput(e.target.value)}
-                              className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                               placeholder="เช่น ค่าบริการ"
                             />
-                            <span className="text-gray-600 text-sm">บาท</span>
+                            <span className="text-gray-600 text-xs sm:text-sm">บาท</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-600">ส่วนลด:</span>
-                        <span className="font-semibold text-red-500">-{formatCurrency(currentOrder.discount)}</span>
+                        <span className="text-gray-600 text-sm sm:text-base">ส่วนลด:</span>
+                        <span className="font-semibold text-red-500 text-sm sm:text-base">-{formatCurrency(currentOrder.discount)}</span>
                       </div>
                       {parseFloat(extraFeeInput) > 0 && (
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-600">ค่าอื่น ๆ:</span>
-                          <span className="font-semibold text-gray-800">{formatCurrency(Math.max(0, parseFloat(extraFeeInput) || 0))}</span>
+                          <span className="text-gray-600 text-sm sm:text-base">ค่าอื่น ๆ:</span>
+                          <span className="font-semibold text-gray-800 text-sm sm:text-base">{formatCurrency(Math.max(0, parseFloat(extraFeeInput) || 0))}</span>
                         </div>
                       )}
-                      <div className="border-t border-gray-300 pt-3 mt-2">
+                      <div className="border-t border-gray-300 pt-2 sm:pt-3 mt-1 sm:mt-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-lg font-bold text-gray-800">รวมทั้งหมด:</span>
-                          <span className="text-2xl font-bold text-emerald-600">{formatCurrency(currentOrder.grandTotal)}</span>
+                          <span className="text-base sm:text-lg font-bold text-gray-800">รวมทั้งหมด:</span>
+                          <span className="text-xl sm:text-2xl font-bold text-emerald-600">{formatCurrency(currentOrder.grandTotal)}</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-3">
+                  <div className="flex space-x-2 sm:space-x-3">
                     <button 
                       onClick={clearOrder}
-                      className="flex-1 py-4 px-6 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 rounded-xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow hover:shadow-md border border-gray-200"
+                      className="flex-1 py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 rounded-xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow hover:shadow-md border border-gray-200 text-sm sm:text-base"
                     >
                       ล้างออเดอร์
                     </button>
                     <button 
                       onClick={openPaymentModal}
-                      className="flex-1 py-4 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      className="flex-1 py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
                     >
                       ชำระเงิน
                     </button>

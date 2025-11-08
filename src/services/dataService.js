@@ -63,6 +63,16 @@ export const updateMenuCategory = async (id, updates) =>
     (error) => errorResult(error.message),
   )
 
+// Add delete menu category function
+export const deleteMenuCategory = async (id) =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.delete(`/menu-categories/${id}`)
+      return successResult(data)
+    },
+    (error) => errorResult(error.message),
+  )
+
 // Menu Items
 export const getMenuItems = async () =>
   withErrorHandling(

@@ -122,6 +122,95 @@ body {
   .modal-content {
     max-width: 100%;
   }
+  
+  /* Adjust grid layouts for smaller screens */
+  .grid-cols-responsive {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Adjust padding and margins for mobile */
+  .p-4 {
+    padding: 1rem;
+  }
+  
+  .p-6 {
+    padding: 1.5rem;
+  }
+  
+  /* Adjust font sizes for better readability on small screens */
+  .text-2xl {
+    font-size: 1.5rem;
+  }
+  
+  .text-3xl {
+    font-size: 1.875rem;
+  }
+}
+
+/* Medium screens */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Adjust grid layouts for tablets */
+  .grid-cols-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Large screens */
+@media (min-width: 1024px) {
+  .grid-cols-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1280px) {
+  .grid-cols-responsive {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Ultra wide screens */
+@media (min-width: 1536px) {
+  .grid-cols-responsive {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+  .text-sm {
+    font-size: 0.75rem;
+  }
+  
+  .text-base {
+    font-size: 0.875rem;
+  }
+  
+  .p-2 {
+    padding: 0.5rem;
+  }
+  
+  .p-3 {
+    padding: 0.75rem;
+  }
+  
+  .p-4 {
+    padding: 0.75rem;
+  }
+  
+  .grid-cols-responsive {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Stack buttons vertically on very small screens */
+  .flex-wrap-gap-2 {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .flex-wrap-gap-2 > * {
+    width: 100%;
+  }
 }
 
 @media (prefers-color-scheme: light) {
