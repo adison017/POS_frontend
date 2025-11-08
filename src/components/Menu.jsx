@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { getMenuCategories, getMenuItems, createMenuCategory, createMenuItem, updateMenuCategory, updateMenuItem } from '../services/dataService';
+import { getAllMenuCategories, getAllMenuItems, createMenuCategory, createMenuItem, updateMenuCategory, updateMenuItem, deleteMenuItem } from '../services/dataService';
 import { uploadToSupabaseStorage } from '../services/supabaseStorageService';
 
 const Menu = () => {
@@ -29,8 +29,8 @@ const Menu = () => {
     const loadData = async () => {
       try {
         const [categoriesData, menuItemsData] = await Promise.all([
-          getMenuCategories(),
-          getMenuItems()
+          getAllMenuCategories(), // Use the new function to get all categories
+          getAllMenuItems() // Use the new function to get all menu items
         ]);
         setCategories(categoriesData);
         setMenuItems(menuItemsData);
@@ -72,7 +72,7 @@ const Menu = () => {
       if (menuItem) {
         const updates = { is_active: !menuItem.is_active };
         const result = await updateMenuItem(menuId, updates);
-        
+      
         if (!result.error) {
           setMenuItems(prevMenuItems => 
             prevMenuItems.map(item => 
@@ -87,6 +87,27 @@ const Menu = () => {
     } catch (error) {
       console.error('Error toggling menu item status:', error);
       toast.error('เกิดข้อผิดพลาดในการอัปเดตสถานะเมนู');
+    }
+  };
+
+  // Add delete menu item function
+  const deleteMenuItemHandler = async (menuId, menuItemName) => {
+    if (!window.confirm(`คุณแน่ใจหรือไม่ที่ต้องการลบเมนู "${menuItemName}"?`)) {
+      return;
+    }
+    
+    try {
+      const result = await deleteMenuItem(menuId);
+      
+      if (!result.error) {
+        setMenuItems(prevMenuItems => prevMenuItems.filter(item => item.id !== menuId));
+        toast.success(`ลบเมนู "${menuItemName}" แล้ว`);
+      } else {
+        toast.error('ไม่สามารถลบเมนูได้');
+      }
+    } catch (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('เกิดข้อผิดพลาดในการลบเมนู');
     }
   };
 
@@ -348,9 +369,13 @@ const Menu = () => {
                 </div>
               ) : (
                 categories.map(category => (
-                  <div key={category.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <div key={category.id} className={`flex items-center justify-between p-4 rounded-xl hover:bg-gray-100 transition-colors ${
+                    category.is_active ? 'bg-gray-50' : 'bg-gray-100 opacity-70'
+                  }`}>
                     <div>
-                      <h4 className="font-bold text-gray-800">{category.name}</h4>
+                      <h4 className={`font-bold ${category.is_active ? 'text-gray-800' : 'text-gray-500'}`}>
+                        {category.name} {category.is_active ? '' : '(ปิด)'}
+                      </h4>
                       <p className="text-sm text-gray-600">ลำดับ: {category.display_order}</p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -423,7 +448,9 @@ const Menu = () => {
                 menuItems.map(item => {
                   const category = categories.find(c => c.id === item.category_id);
                   return (
-                    <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div key={item.id} className={`flex items-center justify-between p-4 rounded-xl hover:bg-gray-100 transition-colors ${
+                      item.is_active ? 'bg-gray-50' : 'bg-gray-100 opacity-70'
+                    }`}>
                       <div className="flex items-center">
                         {item.image_url ? (
                           <img 
@@ -439,7 +466,9 @@ const Menu = () => {
                           </div>
                         )}
                         <div>
-                          <h4 className="font-bold text-gray-800">{item.name}</h4>
+                          <h4 className={`font-bold ${item.is_active ? 'text-gray-800' : 'text-gray-500'}`}>
+                            {item.name} {item.is_active ? '' : '(ปิด)'}
+                          </h4>
                           <p className="text-sm text-gray-600">{category?.name || 'ไม่มีหมวดหมู่'}</p>
                           <p className="text-sm font-bold text-gray-800">{formatCurrency(item.price)}</p>
                         </div>
@@ -452,6 +481,15 @@ const Menu = () => {
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => deleteMenuItemHandler(item.id, item.name)}
+                          className="p-2 text-gray-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="ลบ"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                           </svg>
                         </button>
                         <button 

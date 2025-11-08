@@ -29,9 +29,17 @@ const errorResult = (error) => ({ error })
 export const getMenuCategories = async () =>
   withErrorHandling(
     async () => {
-      console.log('[dataService] Fetching menu categories')
       const { data } = await apiClient.get('/menu-categories')
-      console.log('[dataService] Menu categories fetched:', data)
+      return ensureArray(data)
+    },
+    [],
+  )
+
+// Add function to fetch all menu categories (including inactive ones) for admin management
+export const getAllMenuCategories = async () =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.get('/menu-categories?showAll=true')
       return ensureArray(data)
     },
     [],
@@ -67,6 +75,18 @@ export const getMenuItems = async () =>
     [],
   )
 
+// Add function to fetch all menu items (including inactive ones) for admin management
+export const getAllMenuItems = async () =>
+  withErrorHandling(
+    async () => {
+      console.log('[dataService] Fetching all menu items')
+      const { data } = await apiClient.get('/menu-items?showAll=true')
+      console.log('[dataService] All menu items fetched:', data)
+      return ensureArray(data)
+    },
+    [],
+  )
+
 export const createMenuItem = async (item) =>
   withErrorHandling(
     async () => {
@@ -81,6 +101,16 @@ export const updateMenuItem = async (id, updates) =>
     async () => {
       const { data } = await apiClient.patch(`/menu-items/${id}`, updates)
       return successResult(normalizeRecord(data))
+    },
+    (error) => errorResult(error.message),
+  )
+
+// Add delete menu item function
+export const deleteMenuItem = async (id) =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.delete(`/menu-items/${id}`)
+      return successResult(data)
     },
     (error) => errorResult(error.message),
   )
