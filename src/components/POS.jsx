@@ -21,6 +21,8 @@ const POS = () => {
   const [cashReceived, setCashReceived] = useState('');
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [receiptPreviewUrl, setReceiptPreviewUrl] = useState('');
+  // Add state for top selling items
+  const [topSellingItems, setTopSellingItems] = useState([]);
 
   const handleDownloadReceipt = async (fileName, url) => {
     try {
@@ -127,9 +129,81 @@ const POS = () => {
     loadLatestOrder();
   }, []);
 
+  // Load top selling items
+  useEffect(() => {
+    const loadTopSellingItems = async () => {
+      try {
+        // Get recent orders and order items
+        const ordersData = await DataService.getOrders();
+        const orderItemsData = await Promise.all(
+          ordersData.map(order => DataService.getOrderItems(order.id))
+        ).then(results => results.flat());
+        
+        // Calculate top selling items based on quantity sold
+        const itemCounts = {};
+        orderItemsData.forEach(item => {
+          if (itemCounts[item.item_id]) {
+            itemCounts[item.item_id].qty += Number(item.qty) || 0;
+            itemCounts[item.item_id].revenue += Number(item.total_price) || 0;
+          } else {
+            itemCounts[item.item_id] = {
+              id: item.item_id,
+              name: item.name,
+              qty: Number(item.qty) || 0,
+              revenue: Number(item.total_price) || 0
+            };
+          }
+        });
+        
+        // Convert to array and sort by quantity
+        const sortedItems = Object.values(itemCounts)
+          .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue)
+          .slice(0, 5); // Top 5 items
+        
+        setTopSellingItems(sortedItems);
+      } catch (error) {
+        console.error('Error loading top selling items:', error);
+        setTopSellingItems([]);
+      }
+    };
+    
+    loadTopSellingItems();
+  }, []);
+
   const filteredMenuItems = selectedCategory === 'all' 
     ? menuItems.filter(item => item.is_active) // Only show active items
     : menuItems.filter(item => item.category_id === selectedCategory && item.is_active); // Only show active items in selected category
+
+  // Sort menu items to show top selling items first
+  const sortedMenuItems = (() => {
+    if (topSellingItems.length === 0) return filteredMenuItems;
+    
+    // Create a map for quick lookup of top selling items and their ranks
+    const topSellingMap = {};
+    topSellingItems.forEach((item, index) => {
+      topSellingMap[item.id] = index + 1;
+    });
+    
+    // Sort items: top selling first, then others
+    return [...filteredMenuItems].sort((a, b) => {
+      const aRank = topSellingMap[a.id];
+      const bRank = topSellingMap[b.id];
+      
+      // If both are top selling items, sort by rank
+      if (aRank && bRank) {
+        return aRank - bRank;
+      }
+      
+      // If only a is top selling, it comes first
+      if (aRank) return -1;
+      
+      // If only b is top selling, it comes first
+      if (bRank) return 1;
+      
+      // If neither is top selling, maintain original order
+      return 0;
+    });
+  })();
 
   const addToOrder = (itemId, overridePrice, qty = 1) => {
     const menuItem = menuItems.find(item => item.id === itemId);
@@ -506,6 +580,17 @@ const POS = () => {
     return `฿${amount.toFixed(2)}`;
   };
 
+  // Check if an item is in top selling items
+  const isTopSellingItem = (itemId) => {
+    return topSellingItems.some(item => item.id === itemId);
+  };
+
+  // Get top selling item rank
+  const getTopSellingRank = (itemId) => {
+    const index = topSellingItems.findIndex(item => item.id === itemId);
+    return index >= 0 ? index + 1 : null;
+  };
+
   return (
     <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4">
       <div className="max-w-7xl mx-auto">
@@ -550,7 +635,7 @@ const POS = () => {
               </div>
 
               {/* Menu Items Grid */}
-              {filteredMenuItems.length === 0 ? (
+              {sortedMenuItems.length === 0 ? (
                 <div className="text-center py-12 sm:py-16">
                   <div className="text-gray-300 mb-4">
                     <svg className="w-16 h-16 sm:w-20 sm:h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,13 +647,20 @@ const POS = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
-                  {filteredMenuItems.map(item => (
+                  {sortedMenuItems.map(item => (
                     <button
                       key={item.id}
                       onClick={() => addToOrder(item.id)}
                       className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-3 sm:p-4 text-left border border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1"
                     >
                       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
+                    
+                      {/* Top selling badge - positioned above the image at top right */}
+                      {isTopSellingItem(item.id) && (
+                        <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full z-20">
+                          ขายดีอันดับ {getTopSellingRank(item.id)}
+                        </div>
+                      )}
                     
                       {item.image_url ? (
                         <div className="relative overflow-hidden rounded-xl mb-2 sm:mb-3">
