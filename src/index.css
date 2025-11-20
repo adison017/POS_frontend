@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@config '../tailwind.config.js';
 
 :root {
   font-family: 'Sarabun', 'Noto Sans Thai', Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;

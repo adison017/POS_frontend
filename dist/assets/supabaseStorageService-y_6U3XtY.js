@@ -1,0 +1,1 @@
+import t from"./apiClient-CgrKIHeM.js";async function p(o,e="menu"){try{const a=new FormData;a.append("file",o),a.append("folder",e);const{data:r}=await t.post("/storage/upload",a,{headers:{"Content-Type":"multipart/form-data"}});return r}catch(a){throw console.error("Storage upload failed:",a),new Error(a.message||"Upload failed")}}export{p as u};

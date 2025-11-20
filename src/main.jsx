@@ -2,6 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import './global.css'
+import './registerSW.js'
 
 // Test environment variables
 console.log('Import meta:', import.meta)
