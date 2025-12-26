@@ -1,11 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { useToast } from '@/components/ui/use-toast';
 import * as DataService from '../services/dataService';
 import socketService from '../services/socket';
 import shopLogo from '../logo.png';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import {
+  ShoppingBag,
+  ChefHat,
+  Trash2,
+  CreditCard,
+  Printer,
+  Download,
+  ExternalLink,
+  Plus,
+  Minus,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const POS = () => {
+  const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const scrollContainerRef = React.useRef(null);
+
+  const scroll = (direction) => {
+    if (scrollContainerRef.current) {
+      const { current } = scrollContainerRef;
+      const scrollAmount = 200;
+      if (direction === 'left') {
+        current.scrollLeft -= scrollAmount;
+      } else {
+        current.scrollLeft += scrollAmount;
+      }
+    }
+  };
   const [currentOrder, setCurrentOrder] = useState({
     items: [],
     subtotal: 0,
@@ -38,7 +76,7 @@ const POS = () => {
       URL.revokeObjectURL(objectUrl);
     } catch (e) {
       console.error('Download receipt failed', e);
-      toast.error('ไม่สามารถดาวน์โหลดสลิปได้');
+      toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถดาวน์โหลดสลิปได้', variant: "destructive" });
     }
   };
 
@@ -54,7 +92,7 @@ const POS = () => {
       printWindow.document.close();
     } catch (e) {
       console.error('Print receipt failed', e);
-      toast.error('ไม่สามารถพิมพ์สลิปได้');
+      toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถพิมพ์สลิปได้', variant: "destructive" });
     }
   };
   // Bill-level adjustments
@@ -72,28 +110,28 @@ const POS = () => {
           DataService.getMenuItems(),
           DataService.getPaymentMethods()
         ]);
-        
+
         // Filter out inactive categories
         const activeCategories = categoriesData ? categoriesData.filter(cat => cat.is_active) : [];
         // Filter out inactive menu items
         const activeMenuItems = menuItemsData ? menuItemsData.filter(item => item.is_active) : [];
-        
+
         setCategories(activeCategories || []);
         setMenuItems(activeMenuItems || []);
         setPaymentMethods(paymentMethodsData || []);
-        
+
         // Set default payment method if available
         if (paymentMethodsData && paymentMethodsData.length > 0) {
           setSelectedPaymentMethod(paymentMethodsData[0].id);
         }
       } catch (error) {
         console.error('Error loading data:', error);
-        toast.error('ไม่สามารถโหลดข้อมูลได้');
+        toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถโหลดข้อมูลได้', variant: "destructive" });
       }
     };
 
     loadData();
-    
+
     const socket = socketService.connectSocket();
     socket.on('order:updated', async () => {
       try {
@@ -103,7 +141,7 @@ const POS = () => {
         console.error('Error updating payment methods:', error);
       }
     });
-    
+
     return () => {
       socket.off('order:updated');
     };
@@ -138,7 +176,7 @@ const POS = () => {
         const orderItemsData = await Promise.all(
           ordersData.map(order => DataService.getOrderItems(order.id))
         ).then(results => results.flat());
-        
+
         // Calculate top selling items based on quantity sold
         const itemCounts = {};
         orderItemsData.forEach(item => {
@@ -154,52 +192,52 @@ const POS = () => {
             };
           }
         });
-        
+
         // Convert to array and sort by quantity
         const sortedItems = Object.values(itemCounts)
           .sort((a, b) => b.qty - a.qty || b.revenue - a.revenue)
           .slice(0, 5); // Top 5 items
-        
+
         setTopSellingItems(sortedItems);
       } catch (error) {
         console.error('Error loading top selling items:', error);
         setTopSellingItems([]);
       }
     };
-    
+
     loadTopSellingItems();
   }, []);
 
-  const filteredMenuItems = selectedCategory === 'all' 
+  const filteredMenuItems = selectedCategory === 'all'
     ? menuItems.filter(item => item.is_active) // Only show active items
     : menuItems.filter(item => item.category_id === selectedCategory && item.is_active); // Only show active items in selected category
 
   // Sort menu items to show top selling items first
   const sortedMenuItems = (() => {
     if (topSellingItems.length === 0) return filteredMenuItems;
-    
+
     // Create a map for quick lookup of top selling items and their ranks
     const topSellingMap = {};
     topSellingItems.forEach((item, index) => {
       topSellingMap[item.id] = index + 1;
     });
-    
+
     // Sort items: top selling first, then others
     return [...filteredMenuItems].sort((a, b) => {
       const aRank = topSellingMap[a.id];
       const bRank = topSellingMap[b.id];
-      
+
       // If both are top selling items, sort by rank
       if (aRank && bRank) {
         return aRank - bRank;
       }
-      
+
       // If only a is top selling, it comes first
       if (aRank) return -1;
-      
+
       // If only b is top selling, it comes first
       if (bRank) return 1;
-      
+
       // If neither is top selling, maintain original order
       return 0;
     });
@@ -215,12 +253,12 @@ const POS = () => {
       const lineId = `${menuItem.id}__${priceToUse}`; // separate lines for different prices
 
       const existingItem = prevOrder.items.find(item => item.id === lineId);
-      
+
       let updatedItems;
       if (existingItem) {
-        updatedItems = prevOrder.items.map(item => 
-          item.id === lineId 
-            ? { ...item, qty: item.qty + qtyToUse, total: (item.qty + qtyToUse) * item.price } 
+        updatedItems = prevOrder.items.map(item =>
+          item.id === lineId
+            ? { ...item, qty: item.qty + qtyToUse, total: (item.qty + qtyToUse) * item.price }
             : item
         );
       } else {
@@ -258,17 +296,17 @@ const POS = () => {
   const updateItemQuantity = (itemId, action) => {
     setCurrentOrder(prevOrder => {
       let updatedItems;
-      
+
       if (action === 'increase') {
-        updatedItems = prevOrder.items.map(item => 
-          item.id === itemId 
-            ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price } 
+        updatedItems = prevOrder.items.map(item =>
+          item.id === itemId
+            ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price }
             : item
         );
       } else if (action === 'decrease') {
-        updatedItems = prevOrder.items.map(item => 
-          item.id === itemId 
-            ? { ...item, qty: item.qty - 1, total: (item.qty - 1) * item.price } 
+        updatedItems = prevOrder.items.map(item =>
+          item.id === itemId
+            ? { ...item, qty: item.qty - 1, total: (item.qty - 1) * item.price }
             : item
         ).filter(item => item.qty > 0);
       }
@@ -347,7 +385,7 @@ const POS = () => {
   const processPayment = async () => {
     if (currentOrder.items.length === 0) return;
     if (!selectedPaymentMethod) {
-      toast.error('กรุณาเลือกวิธีการชำระเงิน');
+      toast({ title: "เกิดข้อผิดพลาด", description: 'กรุณาเลือกวิธีการชำระเงิน', variant: "destructive" });
       return;
     }
 
@@ -358,7 +396,7 @@ const POS = () => {
     if (isCash) {
       const received = parseFloat(cashReceived || '0');
       if (!isFinite(received) || received < currentOrder.grandTotal) {
-        toast.error('จำนวนเงินที่รับมาต้องมากกว่าหรือเท่ากับยอดชำระ');
+        toast({ title: "เกิดข้อผิดพลาด", description: 'จำนวนเงินที่รับมาต้องมากกว่าหรือเท่ากับยอดชำระ', variant: "destructive" });
         return;
       }
     }
@@ -366,7 +404,7 @@ const POS = () => {
     try {
       // Generate a unique order number based on currentOrderNumber
       const orderNo = `ORD${String(currentOrderNumber).padStart(4, '0')}`;
-      
+
       // Create order record
       const orderData = {
         id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // More unique ID
@@ -392,10 +430,10 @@ const POS = () => {
       console.log('Creating order with data:', orderData);
       const orderResult = await DataService.createOrder(orderData);
       console.log('Order result:', orderResult);
-      
+
       if (orderResult.error) {
         console.error('Failed to create order:', orderResult.error);
-        toast.error('ไม่สามารถสร้างออเดอร์ได้ กรุณาลองใหม่อีกครั้ง');
+        toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถสร้างออเดอร์ได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
         throw new Error('Failed to create order: ' + orderResult.error.message);
       }
 
@@ -415,10 +453,10 @@ const POS = () => {
         console.log('Creating order item with data:', orderItemData);
         const itemResult = await DataService.createOrderItem(orderItemData);
         console.log('Order item result:', itemResult);
-        
+
         if (itemResult.error) {
           console.error('Failed to create order item:', itemResult.error);
-          toast.error('ไม่สามารถบันทึกรายการอาหารได้ กรุณาลองใหม่อีกครั้ง');
+          toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถบันทึกรายการอาหารได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
           throw new Error('Failed to create order item: ' + itemResult.error.message);
         }
       }
@@ -428,7 +466,7 @@ const POS = () => {
       setCurrentOrderNumber(prev => prev + 1);
       setShowPaymentModal(false);
       setCashReceived('');
-      
+
       try {
         // Generate modern receipt (3:4) with logo and structured layout
         const canvas = document.createElement('canvas');
@@ -569,10 +607,10 @@ const POS = () => {
         console.error('Receipt upload error:', e);
       }
 
-      toast.success('ชำระเงินเรียบร้อยแล้ว!');
+      toast({ title: "สำเร็จ", description: 'ชำระเงินเรียบร้อยแล้ว!' });
     } catch (error) {
       console.error('Payment processing error:', error);
-      toast.error('เกิดข้อผิดพลาดในการชำระเงิน กรุณาลองใหม่อีกครั้ง');
+      toast({ title: "เกิดข้อผิดพลาด", description: 'เกิดข้อผิดพลาดในการชำระเงิน กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
     }
   };
 
@@ -592,451 +630,424 @@ const POS = () => {
   };
 
   return (
-    <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">ระบบขายหน้าร้าน (POS)</h1>
-          <p className="text-gray-600 text-sm sm:text-base">จัดการออเดอร์และชำระเงินอย่างรวดเร็ว</p>
-        </div>
+    <div className="w-full min-h-screen bg-background p-4 md:p-6 lg:p-8 space-y-6">
+      <div className="max-w-[1920px] mx-auto h-[calc(100vh-80px)]">
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 h-full">
-          {/* Menu Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 h-full">
-              {/* Category Filter */}
-              <div className="mb-6 sm:mb-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-4">เมนูอาหาร</h2>
-                <div className="flex flex-wrap gap-1 sm:gap-2">
-                  <button
-                    onClick={() => setSelectedCategory('all')}
-                    className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                      selectedCategory === 'all'
-                        ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
-                        : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-                    }`}
-                  >
-                    ทั้งหมด
-                  </button>
-                  {categories.map(category => (
-                    <button
-                      key={category.id}
-                      onClick={() => setSelectedCategory(category.id)}
-                      className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                        selectedCategory === category.id
-                          ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200'
-                          : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
-                      }`}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
+        <div className="flex flex-col lg:flex-row gap-6 h-full">
+          {/* Left Side: Menu */}
+          <div className="flex-1 min-w-0 flex flex-col gap-6 h-full">
+            {/* Header & Categories */}
+            <div className="flex flex-col gap-4 shrink-0">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">ระบบขายหน้าร้าน (POS)</h1>
+                  <p className="text-muted-foreground">จัดการออเดอร์และชำระเงิน</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="ค้นหาเมนู..."
+                      className="pl-8 w-64"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Menu Items Grid */}
-              {sortedMenuItems.length === 0 ? (
-                <div className="text-center py-12 sm:py-16">
-                  <div className="text-gray-300 mb-4">
-                    <svg className="w-16 h-16 sm:w-20 sm:h-20 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                    </svg>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">ไม่มีรายการเมนู</h3>
-                  <p className="text-gray-500 text-sm sm:text-base">กรุณาเพิ่มเมนูในหน้า "เมนู"</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 max-h-[calc(100vh-300px)] sm:max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
-                  {sortedMenuItems.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => addToOrder(item.id)}
-                      className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-3 sm:p-4 text-left border border-gray-200 hover:border-indigo-300 hover:shadow-xl transition-all duration-300 group relative overflow-hidden flex flex-col h-full transform hover:-translate-y-1"
+              <div className="relative group flex items-center">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute left-0 z-10 h-8 w-8 -ml-4 bg-primary text-primary-foreground shadow-md hover:bg-primary/90 rounded-full hidden md:flex"
+                  onClick={() => scroll('left')}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+
+                <ScrollArea className="w-full whitespace-nowrap pb-2 px-2" viewportRef={scrollContainerRef}>
+                  <div className="flex w-max space-x-2 p-1">
+                    <Button
+                      variant={selectedCategory === 'all' ? "default" : "outline"}
+                      onClick={() => setSelectedCategory('all')}
+                      className={cn(
+                        "rounded-full shadow-sm transition-all duration-300 shrink-0",
+                        selectedCategory === 'all'
+                          ? "scale-105 font-bold ring-2 ring-primary ring-offset-2"
+                          : "hover:scale-105 hover:bg-primary hover:text-primary-foreground"
+                      )}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"></div>
-                    
-                      {/* Top selling badge - positioned above the image at top right */}
-                      {isTopSellingItem(item.id) && (
-                        <div className="absolute top-2 right-2 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full z-20">
-                          ขายดีอันดับ {getTopSellingRank(item.id)}
-                        </div>
-                      )}
-                    
-                      {item.image_url ? (
-                        <div className="relative overflow-hidden rounded-xl mb-2 sm:mb-3">
-                          <img 
-                            src={item.image_url} 
-                            alt={item.name}
-                            className="w-full h-24 sm:h-32 object-cover group-hover:scale-110 transition-transform duration-500"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-24 sm:h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl mb-2 sm:mb-3 flex items-center justify-center relative overflow-hidden">
-                          <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200"></div>
-                          <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-300 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      )}
-                    
-                      <div className="relative z-10 flex flex-col flex-grow">
-                        <h3 className="font-semibold text-gray-800 group-hover:text-indigo-600 text-sm leading-tight mb-2 line-clamp-2 flex-grow">{item.name}</h3>
-                        <div className="mt-auto pt-1 sm:pt-2 flex items-center justify-between">
-                          <span className="font-bold text-base sm:text-lg text-emerald-600 whitespace-nowrap truncate block">{formatCurrency(item.price)}</span>
-                          <div className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            เพิ่ม
+                      ทั้งหมด
+                    </Button>
+                    {categories.map(category => (
+                      <Button
+                        key={category.id}
+                        variant={selectedCategory === category.id ? "default" : "outline"}
+                        onClick={() => setSelectedCategory(category.id)}
+                        className={cn(
+                          "rounded-full shadow-sm transition-all duration-300 shrink-0",
+                          selectedCategory === category.id
+                            ? "scale-105 font-bold ring-2 ring-primary ring-offset-2"
+                            : "hover:scale-105 hover:bg-primary hover:text-primary-foreground"
+                        )}
+                      >
+                        {category.name}
+                      </Button>
+                    ))}
+                  </div>
+                  <ScrollBar orientation="horizontal" className="hidden" />
+                </ScrollArea>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="absolute right-0 z-10 h-8 w-8 -mr-4 bg-primary text-primary-foreground shadow-md hover:bg-primary/90 rounded-full hidden md:flex"
+                  onClick={() => scroll('right')}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Menu Grid */}
+            <Card className="flex-1 bg-muted/40 border-none shadow-inner overflow-hidden">
+              <ScrollArea className="h-full p-4">
+                {sortedMenuItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-12 text-center text-muted-foreground">
+                    <ChefHat className="h-24 w-24 mb-4 opacity-20" />
+                    <h3 className="text-xl font-semibold">ไม่มีรายการเมนู</h3>
+                    <p>กรุณาเพิ่มเมนูในหน้า "เมนู"</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+                    {sortedMenuItems.map(item => (
+                      <Card
+                        key={item.id}
+                        className="group relative overflow-hidden cursor-pointer hover:border-primary hover:shadow-lg transition-all active:scale-95"
+                        onClick={() => addToOrder(item.id)}
+                      >
+                        <div className="aspect-[4/3] overflow-hidden relative">
+                          {isTopSellingItem(item.id) && (
+                            <Badge className="absolute top-2 right-2 z-10 bg-amber-500 hover:bg-amber-600">
+                              อันดับ {getTopSellingRank(item.id)}
+                            </Badge>
+                          )}
+                          {item.image_url ? (
+                            <img
+                              src={item.image_url}
+                              alt={item.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-secondary flex items-center justify-center">
+                              <ShoppingBag className="h-12 w-12 text-muted-foreground/40" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Plus className="text-white h-12 w-12 drop-shadow-lg" />
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Order Section */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 h-full flex flex-col">
-              {/* Order Header */}
-              <div className="flex justify-between items-center mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-800">ออเดอร์ปัจจุบัน</h2>
-                {currentOrder.items.length > 0 && (
-                  <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold shadow-md">
-                    #{`ORD${String(currentOrderNumber).padStart(4, '0')}`}
+                        <div className="p-4">
+                          <h3 className="font-semibold truncate mb-1" title={item.name}>{item.name}</h3>
+                          <p className="text-lg font-bold text-primary">{formatCurrency(item.price)}</p>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
                 )}
+              </ScrollArea>
+            </Card>
+          </div>
+
+          {/* Right Side: Order Summary */}
+          <Card className="w-full lg:w-[450px] flex flex-col h-full shadow-xl border-l-4 border-l-primary/20">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <ShoppingBag className="h-5 w-5" /> ออเดอร์ปัจจุบัน
+                </CardTitle>
+                {currentOrder.items.length > 0 && (
+                  <Badge variant="secondary" className="font-mono text-base">
+                    #{`ORD${String(currentOrderNumber).padStart(4, '0')}`}
+                  </Badge>
+                )}
               </div>
-            
+            </CardHeader>
+
+            <CardContent className="flex-1 p-0 overflow-hidden relative">
               {currentOrder.items.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center py-8 sm:py-12">
-                  <div className="text-gray-200 mb-4 sm:mb-6">
-                    <svg className="w-16 h-16 sm:w-24 sm:h-24 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-1 sm:mb-2">ยังไม่มีรายการ</h3>
-                  <p className="text-gray-500 mb-3 sm:mb-4 text-sm sm:text-base">เพิ่มรายการจากเมนูด้านซ้าย</p>
-                  <div className="text-gray-400 text-xs sm:text-sm">
-                    คลิกที่เมนูอาหารเพื่อเพิ่มลงในออเดอร์
-                  </div>
+                <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+                  <ShoppingBag className="h-16 w-16 mb-4 opacity-20" />
+                  <p>ยังไม่มีรายการ</p>
+                  <p className="text-sm">เลือกเมนูทางซ้ายเพื่อเริ่มรายการขาย</p>
                 </div>
               ) : (
-                <>
-                  {/* Order Items */}
-                  <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 custom-scrollbar mb-4 sm:mb-6">
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-3">
                     {currentOrder.items.map((item) => (
                       <div
                         key={item.id}
-                        className="p-3 sm:p-4 bg-gray-50 rounded-xl mb-2 sm:mb-3 last:mb-0 border border-gray-100 hover:border-gray-200 transition-colors duration-200"
+                        className="flex flex-col gap-2 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
                       >
-                        <div className="flex items-start justify-between gap-2 sm:gap-3">
-                          <h3 className="font-semibold text-gray-800 truncate pr-2 flex-1 min-w-0 text-sm sm:text-base">{item.name}</h3>
-                          <span className="font-bold text-gray-800 text-base sm:text-lg whitespace-nowrap">{formatCurrency(item.total)}</span>
-                        </div>
-                        <div className="mt-2 sm:mt-3 space-y-2">
-                          {/* Qty controls */}
-                          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
-                            <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">{formatCurrency(item.price)} × {item.qty}</span>
-                            <div className="flex items-center bg-white border border-gray-200 rounded-lg sm:rounded-xl overflow-hidden">
-                              <button
-                                onClick={() => updateItemQuantity(item.id, 'decrease')}
-                                className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
-                                aria-label="decrease quantity"
-                              >
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"/></svg>
-                              </button>
-                              <span className="px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold text-gray-700 min-w-6 sm:min-w-8 text-center">{item.qty}</span>
-                              <button
-                                onClick={() => updateItemQuantity(item.id, 'increase')}
-                                className="p-1.5 sm:p-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
-                                aria-label="increase quantity"
-                              >
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                              </button>
+                        <div className="flex justify-between items-start">
+                          <div className="min-w-0 flex-1 mr-2">
+                            <h4 className="font-medium truncate">{item.name}</h4>
+                            <div className="text-xs text-muted-foreground">
+                              {formatCurrency(item.price)} / หน่วย
                             </div>
                           </div>
-                          {/* Quick price adjust moved to bottom */}
-                          <div className="flex items-center flex-wrap gap-1 justify-end sm:justify-start">
-                            <span className="text-xs text-gray-400 mr-1">ปรับราคา:</span>
-                            <button onClick={() => adjustLinePrice(item.id, -10)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-10</button>
-                            <button onClick={() => adjustLinePrice(item.id, -5)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">-5</button>
-                            <button onClick={() => adjustLinePrice(item.id, 5)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+5</button>
-                            <button onClick={() => adjustLinePrice(item.id, 10)} className="px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs bg-white hover:bg-gray-100 rounded border border-gray-200">+10</button>
+                          <div className="font-bold tabular-nums">
+                            {formatCurrency(item.total)}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-1">
+                          {/* Quantity Control */}
+                          <div className="flex items-center border rounded-md bg-background">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-r-none"
+                              onClick={() => updateItemQuantity(item.id, 'decrease')}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <div className="w-10 text-center text-sm font-semibold tabular-nums">
+                              {item.qty}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-l-none"
+                              onClick={() => updateItemQuantity(item.id, 'increase')}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+
+                          {/* Quick Price Adjust */}
+                          <div className="flex gap-1 ml-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => adjustLinePrice(item.id, -5)}
+                            >
+                              -5
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => adjustLinePrice(item.id, 5)}
+                            >
+                              +5
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
+                </ScrollArea>
+              )}
+            </CardContent>
 
-                  {/* Order Summary */}
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 border border-gray-200">
-                    <div className="space-y-2 sm:space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 text-sm sm:text-base">รวมย่อย:</span>
-                        <span className="font-semibold text-gray-800 text-sm sm:text-base">{formatCurrency(currentOrder.subtotal)}</span>
-                      </div>
-                      {/* Adjustments */}
-                      <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                        <div className="space-y-2">
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700">ส่วนลด</label>
-                          <div className="flex items-stretch gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={discountInput}
-                              onChange={(e) => setDiscountInput(e.target.value)}
-                              className="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                              placeholder="0"
-                            />
-                            <select
-                              value={discountType}
-                              onChange={(e) => setDiscountType(e.target.value)}
-                              className="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                              aria-label="หน่วยส่วนลด"
-                            >
-                              <option value="amount">บาท</option>
-                              <option value="percent">%</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700">ค่าอื่น ๆ</label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={extraFeeInput}
-                              onChange={(e) => setExtraFeeInput(e.target.value)}
-                              className="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                              placeholder="เช่น ค่าบริการ"
-                            />
-                            <span className="text-gray-600 text-xs sm:text-sm">บาท</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 text-sm sm:text-base">ส่วนลด:</span>
-                        <span className="font-semibold text-red-500 text-sm sm:text-base">-{formatCurrency(currentOrder.discount)}</span>
-                      </div>
-                      {parseFloat(extraFeeInput) > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm sm:text-base">ค่าอื่น ๆ:</span>
-                          <span className="font-semibold text-gray-800 text-sm sm:text-base">{formatCurrency(Math.max(0, parseFloat(extraFeeInput) || 0))}</span>
-                        </div>
-                      )}
-                      <div className="border-t border-gray-300 pt-2 sm:pt-3 mt-1 sm:mt-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-base sm:text-lg font-bold text-gray-800">รวมทั้งหมด:</span>
-                          <span className="text-xl sm:text-2xl font-bold text-emerald-600">{formatCurrency(currentOrder.grandTotal)}</span>
-                        </div>
-                      </div>
+            <Separator />
+
+            {/* Calculation & Actions */}
+            <div className="p-6 bg-muted/20 space-y-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">รวมย่อย</span>
+                  <span>{formatCurrency(currentOrder.subtotal)}</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">ส่วนลด</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        className="h-8 text-right"
+                        value={discountInput}
+                        onChange={(e) => setDiscountInput(e.target.value)}
+                        placeholder="0"
+                      />
+                      <Select value={discountType} onValueChange={setDiscountType}>
+                        <SelectTrigger className="h-8 w-[70px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="amount">บาท</SelectItem>
+                          <SelectItem value="percent">%</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex space-x-2 sm:space-x-3">
-                    <button 
-                      onClick={clearOrder}
-                      className="flex-1 py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 rounded-xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow hover:shadow-md border border-gray-200 text-sm sm:text-base"
-                    >
-                      ล้างออเดอร์
-                    </button>
-                    <button 
-                      onClick={openPaymentModal}
-                      className="flex-1 py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-sm sm:text-base"
-                    >
-                      ชำระเงิน
-                    </button>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">ค่าอื่น ๆ (บาท)</label>
+                    <Input
+                      type="number"
+                      className="h-8 text-right"
+                      value={extraFeeInput}
+                      onChange={(e) => setExtraFeeInput(e.target.value)}
+                      placeholder="0"
+                    />
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+                </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md transform animate-scale-in border border-gray-200">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-bold text-gray-800">ชำระเงิน</h3>
-              <button 
-                onClick={closePaymentModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-xl"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-
-            <div className="mb-8">
-              <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-2xl p-6 mb-6 text-center">
-                <div className="text-sm opacity-90 mb-1">ออเดอร์ #</div>
-                <div className="text-2xl font-bold mb-2">{`ORD${String(currentOrderNumber).padStart(4, '0')}`}</div>
-                <div className="text-3xl font-bold">{formatCurrency(currentOrder.grandTotal)}</div>
-              </div>
-              
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-4">เลือกวิธีการชำระเงิน</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {paymentMethods.map(method => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedPaymentMethod(method.id)}
-                      className={`p-4 rounded-xl border-2 text-center transition-all duration-300 ${
-                        selectedPaymentMethod === method.id
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-bold shadow-md scale-105'
-                          : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700'
-                      }`}
-                    >
-                      {method.name}
-                    </button>
-                  ))}
+                <div className="flex justify-between text-red-500">
+                  <span>ส่วนลดรวม</span>
+                  <span>-{formatCurrency(currentOrder.discount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">ค่าอื่น ๆ</span>
+                  <span>+{formatCurrency(Math.max(0, parseFloat(extraFeeInput) || 0))}</span>
                 </div>
               </div>
 
-            {/* Cash section: amount received and change */}
+              <Separator />
+
+              <div className="flex justify-between items-center">
+                <span className="text-lg font-bold">รวมทั้งสิ้น</span>
+                <span className="text-3xl font-bold text-primary tabular-nums tracking-tight">
+                  {formatCurrency(currentOrder.grandTotal)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="h-12 border-destructive text-destructive hover:bg-destructive hover:text-white transition-all hover:scale-105 shadow-sm"
+                  onClick={clearOrder}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  ล้าง
+                </Button>
+                <Button
+                  className="col-span-2 h-12 text-lg font-bold shadow-lg shadow-primary/20"
+                  size="lg"
+                  variant="success"
+                  onClick={openPaymentModal}
+                  disabled={currentOrder.items.length === 0}
+                >
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  ชำระเงิน
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Payment Modal Refactored to Dialog */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">ชำระเงิน</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="bg-primary/10 rounded-xl p-6 text-center space-y-1 border border-primary/20">
+              <p className="text-sm text-muted-foreground">ODR#{String(currentOrderNumber).padStart(4, '0')}</p>
+              <p className="text-4xl font-bold text-primary tabular-nums">{formatCurrency(currentOrder.grandTotal)}</p>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-sm font-medium">วิธีการชำระเงิน</label>
+              <div className="grid grid-cols-2 gap-3">
+                {paymentMethods.map(method => (
+                  <Button
+                    key={method.id}
+                    variant={selectedPaymentMethod === method.id ? "default" : "outline"}
+                    className={cn("h-16 text-lg", selectedPaymentMethod === method.id && "ring-2 ring-primary ring-offset-2")}
+                    onClick={() => setSelectedPaymentMethod(method.id)}
+                  >
+                    {method.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Cash Calculation */}
             {(() => {
               const m = paymentMethods.find(pm => pm.id === selectedPaymentMethod);
               const isCash = m?.id === 'pm_cash' || m?.id === 'cash' || m?.name?.toLowerCase?.().includes('cash') || m?.name?.includes('เงินสด');
               if (!isCash) return null;
+
               const received = parseFloat(cashReceived || '0');
               const change = isFinite(received) ? Math.max(0, received - currentOrder.grandTotal) : 0;
               const isEnough = isFinite(received) && received >= currentOrder.grandTotal;
-              const boxClass = isEnough ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200';
-              const amountClass = isEnough ? 'text-emerald-700' : 'text-amber-700';
+
               return (
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">รับเงินมา</label>
-                  <div className="flex items-stretch gap-2">
-                    <input
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">รับเงินมา</label>
+                    <Input
                       type="number"
-                      step="0.01"
+                      className="text-lg h-12"
+                      placeholder="0.00"
                       value={cashReceived}
                       onChange={(e) => setCashReceived(e.target.value)}
-                      className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      placeholder="0.00"
                     />
-                    <span className="px-3 py-2 text-gray-600 bg-gray-50 border border-gray-200 rounded-lg">บาท</span>
                   </div>
-                  <div className={`mt-3 flex items-center justify-between rounded-xl px-4 py-3 border ${boxClass}`}>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                      <svg className={`w-5 h-5 ${isEnough ? 'text-emerald-600' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                      </svg>
-                      <span>{isEnough ? 'เงินทอน' : 'รับเงินไม่พอ'}</span>
-                    </div>
-                    <span className={`font-extrabold text-2xl ${amountClass}`}>{formatCurrency(change)}</span>
+
+                  <div className={cn("flex justify-between items-center p-3 rounded-lg border", isEnough ? "bg-green-500/10 border-green-500/20 text-green-700" : "bg-yellow-500/10 border-yellow-500/20 text-yellow-700")}>
+                    <span className="font-medium">{isEnough ? 'เงินทอน' : 'ยังขาดอีก'}</span>
+                    <span className="text-xl font-bold">{formatCurrency(isEnough ? change : currentOrder.grandTotal - received)}</span>
                   </div>
                 </div>
-              );
+              )
             })()}
-            </div>
-
-            <div className="flex space-x-4">
-              <button 
-                onClick={closePaymentModal}
-                className="flex-1 py-4 px-6 bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 rounded-xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow border border-gray-200"
-              >
-                ยกเลิก
-              </button>
-              <button 
-                onClick={processPayment}
-                className="flex-1 py-4 px-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={(() => {
-                  const m = paymentMethods.find(pm => pm.id === selectedPaymentMethod);
-                  const isCash = m?.id === 'pm_cash' || m?.id === 'cash' || m?.name?.toLowerCase?.().includes('cash') || m?.name?.includes('เงินสด');
-                  if (!isCash) return false;
-                  const received = parseFloat(cashReceived || '0');
-                  return !(isFinite(received) && received >= currentOrder.grandTotal);
-                })()}
-              >
-                ยืนยันการชำระ
-              </button>
-            </div>
           </div>
-        </div>
-      )}
 
-      {/* Price quick adjust handled inline per line item; no dialog */}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={closePaymentModal} size="lg">ยกเลิก</Button>
+            <Button
+              size="lg"
+              className="w-full sm:w-auto font-bold"
+              variant="success"
+              onClick={processPayment}
+              disabled={(() => {
+                const m = paymentMethods.find(pm => pm.id === selectedPaymentMethod);
+                const isCash = m?.id === 'pm_cash' || m?.id === 'cash' || m?.name?.toLowerCase?.().includes('cash') || m?.name?.includes('เงินสด');
+                if (!isCash) return false;
+                const received = parseFloat(cashReceived || '0');
+                return !(isFinite(received) && received >= currentOrder.grandTotal);
+              })()}
+            >
+              ยืนยันการชำระเงิน
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Receipt Preview Modal */}
-      {showReceiptModal && receiptPreviewUrl && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-4 w-full max-w-xl border border-gray-200">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-lg font-bold text-gray-800">สลิปการชำระเงิน</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePrintReceipt(receiptPreviewUrl)}
-                  className="px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold"
-                >
-                  พิมพ์
-                </button>
-                <button
-                  onClick={() => handleDownloadReceipt(`receipt_${String(currentOrderNumber - 1).padStart(4, '0')}`, receiptPreviewUrl)}
-                  className="px-3 py-1.5 text-sm bg-white hover:bg-gray-50 text-gray-700 rounded-lg border border-gray-200 font-bold"
-                >
-                  ดาวน์โหลด
-                </button>
-                <a
-                  href={receiptPreviewUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold"
-                >
-                  เปิดในแท็บใหม่
-                </a>
-                <button
-                  onClick={() => setShowReceiptModal(false)}
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
-                  aria-label="close receipt"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
-            </div>
-            <div className="max-h-[70vh] overflow-auto">
-              <img src={receiptPreviewUrl} alt="receipt" className="w-full h-auto rounded-lg border border-gray-200" />
-            </div>
+      {/* Receipt Preview Dialog */}
+      <Dialog open={showReceiptModal} onOpenChange={setShowReceiptModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>ใบเสร็จรับเงิน</DialogTitle>
+          </DialogHeader>
+
+          <div className="aspect-[3/4] overflow-auto border rounded-md bg-white">
+            {receiptPreviewUrl && (
+              <img src={receiptPreviewUrl} alt="Receipt" className="w-full h-auto" />
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Custom Scrollbar Styles */}
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-        .animate-scale-in {
-          animation: scaleIn 0.2s ease-out;
-        }
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-      `}</style>
+          <DialogFooter>
+            <div className="flex w-full gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => handleDownloadReceipt(`receipt_${String(currentOrderNumber - 1).padStart(4, '0')}`, receiptPreviewUrl)}>
+                <Download className="mr-2 h-4 w-4" /> ดาวน์โหลด
+              </Button>
+              <Button className="flex-1" onClick={() => handlePrintReceipt(receiptPreviewUrl)}>
+                <Printer className="mr-2 h-4 w-4" /> พิมพ์
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

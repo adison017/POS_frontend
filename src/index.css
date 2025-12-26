@@ -1,223 +1,76 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@config '../tailwind.config.js';
-
-:root {
-  font-family: 'Sarabun', 'Noto Sans Thai', Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: #000000; /* Changed to black */
-  background-color: #f9fafb;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  min-width: 320px;
-  min-height: 100vh;
-  color: #000000; /* Ensure body text is black */
-  width: 100%;
-}
-
-/* Override specific Tailwind text color classes to ensure black text for regular content */
-.text-gray-500,
-.text-gray-600,
-.text-gray-700,
-.text-gray-800,
-.text-gray-900 {
-  color: #000000 !important; /* Force text to be black */
-}
-
-/* Custom scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c5c5c5;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a0a0a0;
-}
-
-/* Toast notifications */
-.toast {
-  background-color: #10b981;
-  color: white;
-  font-weight: 500;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.toast.show {
-  opacity: 1;
-}
-
-.toast.success {
-  background-color: #10b981;
-}
-
-.toast.error {
-  background-color: #ef4444;
-}
-
-/* Offline indicator */
-.offline-indicator {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 1000;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #000000; /* Black text */
-}
-
-.online {
-  background-color: #10b981;
-  color: white;
-}
-
-.offline {
-  background-color: #ef4444;
-  color: white;
-}
-
-/* Modal overlay */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-/* Active tab styles */
-.tab-active {
-  background-color: #3b82f6;
-  color: white;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .modal-overlay {
-    padding: 10px;
-  }
-  
-  .modal-content {
-    max-width: 100%;
-  }
-  
-  /* Adjust grid layouts for smaller screens */
-  .grid-cols-responsive {
-    grid-template-columns: 1fr;
-  }
-  
-  /* Adjust padding and margins for mobile */
-  .p-4 {
-    padding: 1rem;
-  }
-  
-  .p-6 {
-    padding: 1.5rem;
-  }
-  
-  /* Adjust font sizes for better readability on small screens */
-  .text-2xl {
-    font-size: 1.5rem;
-  }
-  
-  .text-3xl {
-    font-size: 1.875rem;
-  }
-}
-
-/* Medium screens */
-@media (min-width: 768px) and (max-width: 1024px) {
-  /* Adjust grid layouts for tablets */
-  .grid-cols-responsive {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* Large screens */
-@media (min-width: 1024px) {
-  .grid-cols-responsive {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* Extra large screens */
-@media (min-width: 1280px) {
-  .grid-cols-responsive {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-/* Ultra wide screens */
-@media (min-width: 1536px) {
-  .grid-cols-responsive {
-    grid-template-columns: repeat(5, 1fr);
-  }
-}
-
-/* Very small screens */
-@media (max-width: 480px) {
-  .text-sm {
-    font-size: 0.75rem;
-  }
-  
-  .text-base {
-    font-size: 0.875rem;
-  }
-  
-  .p-2 {
-    padding: 0.5rem;
-  }
-  
-  .p-3 {
-    padding: 0.75rem;
-  }
-  
-  .p-4 {
-    padding: 0.75rem;
-  }
-  
-  .grid-cols-responsive {
-    grid-template-columns: 1fr;
-  }
-  
-  /* Stack buttons vertically on very small screens */
-  .flex-wrap-gap-2 {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .flex-wrap-gap-2 > * {
-    width: 100%;
-  }
-}
-
-@media (prefers-color-scheme: light) {
+@layer base {
   :root {
-    color: #000000; /* Ensure black text in light mode */
-    background-color: #ffffff;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
