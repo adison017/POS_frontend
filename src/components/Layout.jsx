@@ -6,13 +6,15 @@ import {
   History,
   Menu as MenuIcon,
   BarChart3,
-  LayoutGrid
+  LayoutGrid,
+  ChefHat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Lazy load components
 const POS = lazy(() => import('./POS'));
 const PurchaseHistory = lazy(() => import('./Kitchen')); // Changed from Kitchen to PurchaseHistory
+const Queue = lazy(() => import('./Queue'));
 const Menu = lazy(() => import('./Menu'));
 const Reports = lazy(() => import('./Reports'));
 const TableManagement = lazy(() => import('./TableManagement'));
@@ -45,6 +47,12 @@ const Layout = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <PurchaseHistory />
+          </Suspense>
+        );
+      case 'queue':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <Queue />
           </Suspense>
         );
       case 'menu':
@@ -122,6 +130,7 @@ const Layout = () => {
             <div className="flex flex-wrap gap-2">
               <NavButton tab="pos" label="POS" icon={ShoppingCart} />
               <NavButton tab="tables" label="โต๊ะ" icon={LayoutGrid} />
+              <NavButton tab="queue" label="คิวออเดอร์" icon={ChefHat} />
               <NavButton tab="purchase-history" label="ประวัติการซื้อ" icon={History} />
               <NavButton tab="menu" label="เมนู" icon={MenuIcon} />
               <NavButton tab="report" label="รายงาน" icon={BarChart3} />

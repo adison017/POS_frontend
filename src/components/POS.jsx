@@ -616,6 +616,20 @@ const POS = ({ initialTable, onTableHandled }) => {
             created_at: new Date().toISOString()
           });
         }
+
+        // Create a Kitchen Ticket for the New Order
+        try {
+          const ticketData = {
+            id: `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            order_id: orderId,
+            status: 'queued',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          await DataService.createKitchenTicket(ticketData);
+        } catch (ticketErr) {
+          console.error('Failed to create kitchen ticket for table order:', ticketErr);
+        }
       }
 
       // Update Table Status
@@ -779,6 +793,21 @@ const POS = ({ initialTable, onTableHandled }) => {
           toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถบันทึกรายการอาหารได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
           throw new Error('Failed to create order item: ' + itemResult.error.message);
         }
+      }
+
+      // Create a Kitchen Ticket for the Order (if new or not already present)
+      try {
+        const ticketData = {
+          id: `ticket_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          order_id: orderId,
+          status: 'queued',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        await DataService.createKitchenTicket(ticketData);
+      } catch (ticketErr) {
+        console.error('Failed to create kitchen ticket:', ticketErr);
+        // We do not throw here to allow payment processing to finish, but log the error
       }
 
       // Clear order and increment order number
