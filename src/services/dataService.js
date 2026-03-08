@@ -13,12 +13,16 @@ const normalizeRecord = (value) => {
   return value
 }
 
-const withErrorHandling = async (operation, onError) => {
+const withErrorHandling = async (fn, fallback = []) => {
   try {
-    return await operation()
+    return await fn()
   } catch (error) {
-    console.error('[dataService]', error)
-    return typeof onError === 'function' ? onError(error) : onError
+    console.error('[dataService] Error:', error)
+    if (error.response) {
+      console.error('[dataService] Backend Response:', error.response.data);
+      console.error('[dataService] Backend Status:', error.response.status);
+    }
+    return { error: error.message, data: fallback } // Return consistent error structure
   }
 }
 
@@ -146,7 +150,7 @@ export const getOrdersPage = async ({ limit = 20, offset = 0, from, to } = {}) =
       const params = { limit, offset }
       if (from) params.from = from
       if (to) params.to = to
-      
+
       console.log('[dataService] Fetching orders page:', { params })
       const { data } = await apiClient.get('/orders', { params })
       console.log('[dataService] Orders page fetched:', data)
@@ -160,6 +164,16 @@ export const getLatestOrderNo = async () =>
     async () => {
       const { data } = await apiClient.get('/orders/latest')
       return data?.latestOrderNo ?? null
+    },
+    null,
+  )
+
+export const getOpenOrderByTable = async (tableId) =>
+  withErrorHandling(
+    async () => {
+      const { data, status } = await apiClient.get(`/orders/table/${tableId}/open`)
+      if (status === 204) return null
+      return data
     },
     null,
   )
@@ -202,6 +216,15 @@ export const createOrderItem = async (item) =>
     async () => {
       const { data } = await apiClient.post('/order-items', item)
       return successResult(normalizeRecord(data))
+    },
+    (error) => errorResult(error.message),
+  )
+
+export const deleteOrderItems = async (orderId) =>
+  withErrorHandling(
+    async () => {
+      await apiClient.delete('/order-items', { params: { orderId } })
+      return successResult(true)
     },
     (error) => errorResult(error.message),
   )
@@ -313,6 +336,45 @@ export const createIncome = async (income) =>
     async () => {
       const { data } = await apiClient.post('/income', income)
       return successResult(normalizeRecord(data))
+    },
+    (error) => errorResult(error.message),
+  )
+
+// Tables
+export const getTables = async () =>
+  withErrorHandling(
+    async () => {
+      console.log('[dataService] Fetching tables')
+      const { data } = await apiClient.get('/tables')
+      console.log('[dataService] Tables fetched:', data)
+      return ensureArray(data)
+    },
+    [],
+  )
+
+export const createTable = async (table) =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.post('/tables', table)
+      return successResult(normalizeRecord(data))
+    },
+    (error) => errorResult(error.message),
+  )
+
+export const updateTable = async (id, updates) =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.patch(`/tables/${id}`, updates)
+      return successResult(normalizeRecord(data))
+    },
+    (error) => errorResult(error.message),
+  )
+
+export const deleteTable = async (id) =>
+  withErrorHandling(
+    async () => {
+      const { data } = await apiClient.delete(`/tables/${id}`)
+      return successResult(data)
     },
     (error) => errorResult(error.message),
   )

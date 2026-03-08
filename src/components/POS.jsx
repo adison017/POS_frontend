@@ -24,11 +24,13 @@ import {
   Search,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Armchair,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const POS = () => {
+const POS = ({ initialTable, onTableHandled }) => {
   const { toast } = useToast();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const scrollContainerRef = React.useRef(null);
@@ -61,6 +63,142 @@ const POS = () => {
   const [receiptPreviewUrl, setReceiptPreviewUrl] = useState('');
   // Add state for top selling items
   const [topSellingItems, setTopSellingItems] = useState([]);
+  const [activeTable, setActiveTable] = useState(null);
+  const [currentOrderId, setCurrentOrderId] = useState(null);
+  const [orderType, setOrderType] = useState('take-away'); // 'take-away' | 'dine-in'
+  const [showTableSelectionModal, setShowTableSelectionModal] = useState(false);
+  const [tables, setTables] = useState([]);
+
+  // Refactored handleTableSelect to be reusable
+  const handleTableSelect = async (table) => {
+    setActiveTable(table);
+    setOrderType('dine-in'); // Switch to dine-in when table is selected
+
+    // Load Open Order for this Table
+    try {
+      const openOrder = await DataService.getOpenOrderByTable(table.id);
+
+      if (openOrder) {
+        console.log("Open Order Found:", openOrder);
+        // Populate Cart
+        let itemsData = openOrder.order_items;
+        console.log("Initial Items Data:", itemsData);
+
+        // Fallback: If order_items is empty/undefined but we have an order, fetch items explicitly
+        if (!itemsData || itemsData.length === 0) {
+          try {
+            console.warn("Order items missing in payload, fetching explicitly for order:", openOrder.id);
+            itemsData = await DataService.getOrderItems(openOrder.id);
+            console.log("Fallback Items Data:", itemsData);
+          } catch (fetchErr) {
+            console.warn("Failed to fetch fallback items", fetchErr);
+          }
+        }
+
+        const cartItems = (itemsData || []).map(item => ({
+          id: item.id, // Use existing ID so we can track it (though we nuke on save usually)
+          baseItemId: item.item_id,
+          name: item.name,
+          price: parseFloat(item.unit_price),
+          qty: item.qty,
+          total: parseFloat(item.total_price)
+        }));
+
+        const subtotal = parseFloat(openOrder.subtotal);
+        const discount = parseFloat(openOrder.discount || 0);
+        const grandTotal = parseFloat(openOrder.grand_total);
+
+        // Infer extra fee: GrandTotal = Subtotal - Discount + ExtraFee
+        // ExtraFee = GrandTotal - (Subtotal - Discount)
+        const extraFeeRaw = grandTotal - (subtotal - discount);
+        const extraFee = Math.max(0, parseFloat(extraFeeRaw.toFixed(2))); // Fix potential float precision issues
+
+        setCurrentOrder({
+          items: cartItems,
+          subtotal: subtotal,
+          discount: discount,
+          grandTotal: grandTotal
+        });
+
+        // Restore input states so recalculation works correctly
+        setDiscountInput(discount > 0 ? discount.toString() : '0');
+        setDiscountType('amount'); // Default to amount as we only store value
+        setExtraFeeInput(extraFee > 0 ? extraFee.toString() : '0');
+
+        setCurrentOrderId(openOrder.id);
+        setCurrentOrderNumber(parseInt(openOrder.order_no.replace('ORD', ''), 10) || currentOrderNumber);
+
+        toast({
+          title: "โหลดออเดอร์เดิม",
+          description: `พบออเดอร์คงค้างสำหรับโต๊ะ ${table.label}`,
+        });
+      } else {
+        // New Order for Table
+        clearOrder();
+        setDiscountInput('0');
+        setExtraFeeInput('0');
+        setCurrentOrderId(null); // Will create new one on save
+        toast({
+          title: "เริ่มรายการใหม่",
+          description: `สร้างรายการใหม่สำหรับโต๊ะ ${table.label}`,
+        });
+      }
+    } catch (err) {
+      console.error("Error loading table order:", err);
+      clearOrder();
+    }
+  };
+
+  // Handle initial table from props (Layout navigation)
+  useEffect(() => {
+    if (initialTable) {
+      handleTableSelect(initialTable);
+      if (onTableHandled) {
+        onTableHandled();
+      }
+    }
+  }, [initialTable]);
+
+  // Listen for table selection from Floor Plan (Window Event - Keep for compatibility)
+  useEffect(() => {
+    const onTableSelectEvent = (e) => {
+      handleTableSelect(e.detail);
+    };
+
+    window.addEventListener('select-table', onTableSelectEvent);
+    return () => window.removeEventListener('select-table', onTableSelectEvent);
+  }, [currentOrderNumber]);
+
+  const handleTableSelectionFromModal = (table) => {
+    setShowTableSelectionModal(false);
+    handleTableSelect(table);
+  };
+
+  // Refresh tables when modal opens
+  useEffect(() => {
+    if (showTableSelectionModal) {
+      DataService.getTables()
+        .then(data => setTables(data || []))
+        .catch(err => console.error("Failed to refresh tables", err));
+    }
+  }, [showTableSelectionModal]);
+
+  // Handle Order Type Change
+  const handleOrderTypeChange = (type) => {
+    if (type === 'take-away') {
+      // Clear table info when switching to take-away
+      setActiveTable(null);
+      setCurrentOrderId(null);
+      setOrderType('take-away');
+      // We keep the cart items so user can switch mode easily
+    } else {
+      setOrderType('dine-in');
+      if (!activeTable) {
+        setShowTableSelectionModal(true);
+        // toast({ title: "กรุณาเลือกโต๊ะ", description: "เลือกโต๊ะจากผังร้านค้าด้านบน" });
+      }
+    }
+  };
 
   const handleDownloadReceipt = async (fileName, url) => {
     try {
@@ -105,10 +243,11 @@ const POS = () => {
     const loadData = async () => {
       try {
         // Load data in parallel but with pagination for orders
-        const [categoriesData, menuItemsData, paymentMethodsData] = await Promise.all([
+        const [categoriesData, menuItemsData, paymentMethodsData, tablesData] = await Promise.all([
           DataService.getMenuCategories(),
           DataService.getMenuItems(),
-          DataService.getPaymentMethods()
+          DataService.getPaymentMethods(),
+          DataService.getTables()
         ]);
 
         // Filter out inactive categories
@@ -119,6 +258,7 @@ const POS = () => {
         setCategories(activeCategories || []);
         setMenuItems(activeMenuItems || []);
         setPaymentMethods(paymentMethodsData || []);
+        setTables(tablesData || []);
 
         // Set default payment method if available
         if (paymentMethodsData && paymentMethodsData.length > 0) {
@@ -372,8 +512,153 @@ const POS = () => {
     });
   }, [discountType, discountInput, extraFeeInput]);
 
-  const openPaymentModal = () => {
-    if (currentOrder.items.length === 0) return;
+  const saveTableOrder = async () => {
+    if (!activeTable) return;
+    if (currentOrder.items.length === 0) {
+      toast({ title: "ไม่สามารถบันทึกได้", description: "กรุณาเพิ่มรายการอาหารก่อนบันทึก", variant: "destructive" });
+      return;
+    }
+
+    try {
+      let orderId = currentOrderId;
+      let orderNoStr = `ORD${String(currentOrderNumber).padStart(4, '0')}`;
+
+      if (orderId) {
+        // Update Existing Order
+
+        // VALIDATION STEP: Check all items before modifying DB
+        const itemsToSave = [];
+        for (const item of currentOrder.items) {
+          const info = {
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate ID client-side
+            order_id: orderId,
+            item_id: item.baseItemId || item.id, // Prefer baseItemId (menu_id), fallback to id if new
+            name: item.name,
+            qty: item.qty,
+            unit_price: item.price,
+            total_price: item.total,
+            created_at: new Date().toISOString()
+          };
+
+          // If we have an existing item loaded from DB, item.id is the UUID of the order_item. 
+          // item.baseItemId IS the menu_item id.
+          // If it's a NEW item, item.id is "menuId__price". item.baseItemId is menuId.
+
+          // CRITICAL: We need a valid menu_item ID for the FK. 
+          // If baseItemId is missing, and id looks like a UUID (long string), we might fail FK if we use UUID.
+          // However, if we loaded it correctly, baseItemId should be there.
+
+          if (!info.item_id || (String(info.item_id).length > 10 && !item.baseItemId && !String(item.id).includes('__'))) {
+            // Suspicious: No baseItemId, and ID looks like a UUID (long string), likely a re-save of a loaded item without baseId mapped.
+            console.warn("Potential Invalid Item ID:", item);
+            // We won't block strictly unless it's empty, but we log it.
+          }
+
+          itemsToSave.push(info);
+        }
+
+        // 1. Update Order Header
+        await DataService.updateOrder(orderId, {
+          subtotal: currentOrder.subtotal,
+          grand_total: currentOrder.grandTotal,
+          discount: currentOrder.discount,
+          updated_at: new Date().toISOString()
+        });
+
+        // 2. Sync Items: Delete all and Re-create
+        // We only delete if we have valid items to replace them with, or if the intention is to clear (itemsToSave empty is valid if user deleted all)
+        await DataService.deleteOrderItems(orderId);
+
+        // 3. Create Items
+        for (const itemPayload of itemsToSave) {
+          try {
+            const result = await DataService.createOrderItem(itemPayload);
+          } catch (createErr) {
+            console.error("Failed to create item:", itemPayload, createErr);
+            toast({ title: "บันทึกรายการล้มเหลว", description: `ไม่สามารถบันทึก: ${itemPayload.name}`, variant: "destructive" });
+          }
+        }
+      } else {
+        // Create New Order
+        const orderData = {
+          id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          order_no: orderNoStr,
+          status: 'pending',
+          table_id: activeTable.id,
+          subtotal: currentOrder.subtotal,
+          grand_total: currentOrder.grandTotal,
+          created_at: new Date().toISOString()
+        };
+
+        const result = await DataService.createOrder(orderData);
+        if (!result.data) throw new Error("Create failed");
+        orderId = result.data.id;
+        setCurrentOrderId(orderId);
+        setCurrentOrderNumber(prev => prev + 1);
+
+        // Create Items
+        for (const item of currentOrder.items) {
+          const itemIdToUse = item.baseItemId || item.id;
+
+          if (!itemIdToUse) {
+            console.error("Skipping item with no ID:", item);
+            continue;
+          }
+
+          await DataService.createOrderItem({
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate ID
+            order_id: orderId,
+            item_id: itemIdToUse,
+            name: item.name,
+            qty: item.qty,
+            unit_price: item.price,
+            total_price: item.total,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+
+      // Update Table Status
+      if (activeTable.status === 'available') {
+        await DataService.updateTable(activeTable.id, { status: 'occupied' });
+      }
+
+      toast({ title: "บันทึกออเดอร์สำเร็จ", description: "ส่งรายการเข้าครัวแล้ว" });
+    } catch (err) {
+      console.error("Save Error", err);
+      toast({ title: "บันทึกไม่สำเร็จ", variant: "destructive" });
+    }
+  };
+
+  const openPaymentModal = async () => {
+    // Robust check: If we have an order ID and grand total > 0, but no items in memory, try to fetch them one last time.
+    if (currentOrder.items.length === 0 && currentOrderId && currentOrder.grandTotal > 0) {
+      toast({ title: "กำลังตรวจสอบรายการ...", description: "ไม่พบรายการอาหารในหน้าจอ กำลังดึงข้อมูลใหม่" });
+      try {
+        const items = await DataService.getOrderItems(currentOrderId);
+        if (items && items.length > 0) {
+          const mappedItems = items.map(item => ({
+            id: item.id,
+            baseItemId: item.item_id,
+            name: item.name,
+            price: parseFloat(item.unit_price),
+            qty: item.qty,
+            total: parseFloat(item.total_price)
+          }));
+          setCurrentOrder(prev => ({ ...prev, items: mappedItems }));
+          // Wait a tick for state update (or proceed directly since we know it's valid)
+          setTimeout(() => setShowPaymentModal(true), 100);
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to recover items:", e);
+      }
+    }
+
+    if (currentOrder.items.length === 0) {
+      toast({ title: "ไม่พบรายการ", description: "ไม่สามารถเช็คบิลได้เนื่องจากไม่มีรายการอาหาร", variant: "destructive" });
+      return;
+    }
     setShowPaymentModal(true);
   };
 
@@ -402,46 +687,84 @@ const POS = () => {
     }
 
     try {
-      // Generate a unique order number based on currentOrderNumber
-      const orderNo = `ORD${String(currentOrderNumber).padStart(4, '0')}`;
+      // Capture state for receipt before clearing/modifying
+      const orderSnapshot = { ...currentOrder };
+      const paymentMethodSnapshot = selectedPaymentMethod;
+      const paymentMethodName = paymentMethods.find(m => m.id === selectedPaymentMethod)?.name || selectedPaymentMethod;
+      const cashReceivedSnapshot = cashReceived; // Capture cash received for receipt
+      const extraFeeInputSnapshot = extraFeeInput; // Capture extra fee for receipt
 
-      // Create order record
-      const orderData = {
-        id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // More unique ID
-        order_no: orderNo,
-        status: 'paid',
-        subtotal: currentOrder.subtotal,
-        grand_total: currentOrder.grandTotal,
-        payment_method: selectedPaymentMethod,
-        branch_id: 'branch1',
-        cashier_id: 'cashier1',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      let orderId;
+      let finalOrderNo;
 
-      // If cash, include cash_received and cash_change for persistence
-      if (isCash) {
-        const received = parseFloat(cashReceived || '0');
-        const change = Math.max(0, received - currentOrder.grandTotal);
-        orderData.cash_received = received;
-        orderData.cash_change = change;
-      }
+      if (currentOrderId && activeTable) {
+        // Update Existing Order
+        const updates = {
+          status: 'paid',
+          subtotal: currentOrder.subtotal,
+          grand_total: currentOrder.grandTotal,
+          discount: currentOrder.discount, // Ensure discount is updated
+          payment_method: selectedPaymentMethod,
+          updated_at: new Date().toISOString()
+        };
 
-      console.log('Creating order with data:', orderData);
-      const orderResult = await DataService.createOrder(orderData);
-      console.log('Order result:', orderResult);
+        if (isCash) {
+          const received = parseFloat(cashReceived || '0');
+          const change = Math.max(0, received - currentOrder.grandTotal);
+          updates.cash_received = received;
+          updates.cash_change = change;
+        }
 
-      if (orderResult.error) {
-        console.error('Failed to create order:', orderResult.error);
-        toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถสร้างออเดอร์ได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
-        throw new Error('Failed to create order: ' + orderResult.error.message);
+        const res = await DataService.updateOrder(currentOrderId, updates);
+        if (res.error) throw new Error(res.error.message);
+
+        orderId = currentOrderId;
+        finalOrderNo = `ORD${String(currentOrderNumber).padStart(4, '0')}`; // Approximate, ideally fetch from DB
+
+        // Sync Items: Delete all and re-create to match payment
+        await DataService.deleteOrderItems(orderId);
+
+        // Clear Table Status
+        await DataService.updateTable(activeTable.id, { status: 'available' });
+
+      } else {
+        // Create New Order
+        finalOrderNo = `ORD${String(currentOrderNumber).padStart(4, '0')}`;
+        const orderData = {
+          id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          order_no: finalOrderNo,
+          status: 'paid',
+          subtotal: currentOrder.subtotal,
+          grand_total: currentOrder.grandTotal,
+          discount: currentOrder.discount, // Ensure discount is saved
+          payment_method: selectedPaymentMethod,
+          branch_id: 'branch1',
+          cashier_id: 'cashier1',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        if (isCash) {
+          const received = parseFloat(cashReceived || '0');
+          const change = Math.max(0, received - currentOrder.grandTotal);
+          orderData.cash_received = received;
+          orderData.cash_change = change;
+        }
+
+        const orderResult = await DataService.createOrder(orderData);
+        if (orderResult.error) {
+          console.error('Failed to create order:', orderResult.error);
+          toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถสร้างออเดอร์ได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
+          throw new Error('Failed to create order: ' + orderResult.error.message);
+        }
+        orderId = orderResult.data.id;
       }
 
       // Create order items
       for (const item of currentOrder.items) {
         const orderItemData = {
-          id: `order_item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // More unique ID
-          order_id: orderResult.data.id,
+          id: `order_item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          order_id: orderId,
           item_id: item.baseItemId || item.id,
           name: item.name,
           qty: item.qty,
@@ -450,10 +773,7 @@ const POS = () => {
           created_at: new Date().toISOString()
         };
 
-        console.log('Creating order item with data:', orderItemData);
         const itemResult = await DataService.createOrderItem(orderItemData);
-        console.log('Order item result:', itemResult);
-
         if (itemResult.error) {
           console.error('Failed to create order item:', itemResult.error);
           toast({ title: "เกิดข้อผิดพลาด", description: 'ไม่สามารถบันทึกรายการอาหารได้ กรุณาลองใหม่อีกครั้ง', variant: "destructive" });
@@ -470,7 +790,7 @@ const POS = () => {
       try {
         // Generate modern receipt (3:4) with logo and structured layout
         const canvas = document.createElement('canvas');
-        const W = 900; // 3:4 aspect ratio (width:height = 3:4)
+        const W = 900;
         const H = 1200;
         canvas.width = W;
         canvas.height = H;
@@ -520,9 +840,12 @@ const POS = () => {
           const img = new Image();
           img.src = shopLogo;
           img.onload = () => resolve(img);
+          img.onerror = () => resolve(null); // Handle error
         });
         const logoSize = 140;
-        ctx.drawImage(logoImg, W / 2 - logoSize / 2, y, logoSize, logoSize);
+        if (logoImg) {
+          ctx.drawImage(logoImg, W / 2 - logoSize / 2, y, logoSize, logoSize);
+        }
         y += logoSize + 20;
 
         // Shop info
@@ -535,18 +858,16 @@ const POS = () => {
         hr(y); y += 24;
 
         // Order basic info
-        drawLeft(`เลขที่ออร์เดอร์: ${orderNo}`, cardPad + 60, y, '600 18px ui-sans-serif');
+        drawLeft(`เลขที่ออร์เดอร์: ${finalOrderNo}`, cardPad + 60, y, '600 18px ui-sans-serif');
         drawRight(new Date().toLocaleString('th-TH'), W - cardPad - 60, y, '16px ui-sans-serif');
         y += 26;
-        const methodName = selectedMethod?.name || selectedPaymentMethod;
-        drawLeft(`วิธีชำระเงิน: ${methodName}`, cardPad + 60, y);
+        drawLeft(`วิธีชำระเงิน: ${paymentMethodName}`, cardPad + 60, y);
         y += 26;
 
         // Cash in/out if cash
-        const isCash = selectedMethod && (selectedMethod.id === 'pm_cash' || selectedMethod.id === 'cash' || selectedMethod.name?.includes('เงินสด') || selectedMethod.name?.toLowerCase?.().includes('cash'));
         if (isCash) {
-          const received = parseFloat(cashReceived || '0');
-          const change = Math.max(0, received - currentOrder.grandTotal);
+          const received = parseFloat(cashReceivedSnapshot || '0');
+          const change = Math.max(0, received - orderSnapshot.grandTotal);
           drawLeft(`ยอดรับเงิน: ${formatCurrency(received)}`, cardPad + 60, y);
           y += 24;
           drawLeft(`เงินทอน: ${formatCurrency(change)}`, cardPad + 60, y);
@@ -561,7 +882,7 @@ const POS = () => {
         y += 22;
 
         // Items
-        currentOrder.items.forEach((it) => {
+        orderSnapshot.items.forEach((it) => {
           drawLeft(`${it.name} x${it.qty} @${formatCurrency(it.price)}`, cardPad + 60, y);
           drawRight(`${formatCurrency(it.total)}`, W - cardPad - 60, y);
           y += 22;
@@ -571,18 +892,18 @@ const POS = () => {
 
         // Totals
         drawLeft('ยอดรวม', cardPad + 60, y, '600 18px ui-sans-serif');
-        drawRight(`${formatCurrency(currentOrder.subtotal)}`, W - cardPad - 60, y, '600 18px ui-sans-serif');
+        drawRight(`${formatCurrency(orderSnapshot.subtotal)}`, W - cardPad - 60, y, '600 18px ui-sans-serif');
         y += 26;
         drawLeft('ส่วนลด', cardPad + 60, y);
-        drawRight(`-${formatCurrency(currentOrder.discount)}`, W - cardPad - 60, y);
+        drawRight(`-${formatCurrency(orderSnapshot.discount)}`, W - cardPad - 60, y);
         y += 22;
-        const extraFee = Math.max(0, parseFloat(extraFeeInput) || 0);
+        const extraFee = Math.max(0, parseFloat(extraFeeInputSnapshot) || 0);
         drawLeft('ค่าอื่น ๆ', cardPad + 60, y);
         drawRight(`${formatCurrency(extraFee)}`, W - cardPad - 60, y);
         y += 26;
         hr(y); y += 30;
         drawLeft('ยอดสุทธิ', cardPad + 60, y, '700 22px ui-sans-serif');
-        drawRight(`${formatCurrency(currentOrder.grandTotal)}`, W - cardPad - 60, y, '700 22px ui-sans-serif');
+        drawRight(`${formatCurrency(orderSnapshot.grandTotal)}`, W - cardPad - 60, y, '700 22px ui-sans-serif');
         y += 36;
 
         // Footer message
@@ -591,14 +912,14 @@ const POS = () => {
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
         if (blob) {
           const formData = new FormData();
-          formData.append('file', new File([blob], `${orderNo}.png`, { type: 'image/png' }));
+          formData.append('file', new File([blob], `${finalOrderNo}.png`, { type: 'image/png' }));
           formData.append('folder', 'receipts');
           const uploadRes = await (await import('../services/apiClient')).default.post('/storage/upload', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
           });
           const receiptUrl = uploadRes?.data?.publicUrl;
           if (receiptUrl) {
-            await DataService.updateOrder(orderResult.data.id, { receipt_url: receiptUrl });
+            await DataService.updateOrder(orderId, { receipt_url: receiptUrl });
             setReceiptPreviewUrl(receiptUrl);
             setShowReceiptModal(true);
           }
@@ -640,7 +961,15 @@ const POS = () => {
             <div className="flex flex-col gap-4 shrink-0">
               <div className="flex justify-between items-center">
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">ระบบขายหน้าร้าน (POS)</h1>
+                  <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                    ระบบขายหน้าร้าน (POS)
+                    {activeTable && (
+                      <Badge variant="default" className="text-lg px-3 py-1 bg-primary animate-in fade-in zoom-in">
+                        <Armchair className="w-4 h-4 mr-2" />
+                        โต๊ะ {activeTable.label}
+                      </Badge>
+                    )}
+                  </h1>
                   <p className="text-muted-foreground">จัดการออเดอร์และชำระเงิน</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -763,7 +1092,7 @@ const POS = () => {
           {/* Right Side: Order Summary */}
           <Card className="w-full lg:w-[450px] flex flex-col h-full shadow-xl border-l-4 border-l-primary/20">
             <CardHeader className="pb-4 border-b bg-muted/20">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-4">
                 <CardTitle className="flex items-center gap-2">
                   <ShoppingBag className="h-5 w-5" /> ออเดอร์ปัจจุบัน
                 </CardTitle>
@@ -773,6 +1102,41 @@ const POS = () => {
                   </Badge>
                 )}
               </div>
+
+              {/* Order Mode Toggle */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg">
+                <Button
+                  variant={orderType === 'dine-in' ? "default" : "ghost"}
+                  className={cn("rounded-md transition-all", orderType === 'dine-in' && "shadow-sm")}
+                  onClick={() => handleOrderTypeChange('dine-in')}
+                >
+                  <Armchair className="w-4 h-4 mr-2" /> ทานที่ร้าน
+                </Button>
+                <Button
+                  variant={orderType === 'take-away' ? "default" : "ghost"}
+                  className={cn("rounded-md transition-all", orderType === 'take-away' && "shadow-sm")}
+                  onClick={() => handleOrderTypeChange('take-away')}
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" /> กลับบ้าน/รับเอง
+                </Button>
+              </div>
+
+              {orderType === 'dine-in' && !activeTable && (
+                <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-lg text-sm flex items-center justify-center animate-pulse cursor-pointer hover:bg-amber-500/20" onClick={() => setShowTableSelectionModal(true)}>
+                  กรุณาเลือกโต๊ะ (คลิกที่นี่)
+                </div>
+              )}
+
+              {orderType === 'dine-in' && activeTable && (
+                <div className="mt-2 flex items-center justify-between p-2 bg-primary/10 border border-primary/20 rounded-lg">
+                  <span className="text-sm font-semibold flex items-center gap-2">
+                    <Armchair className="w-4 h-4" /> โต๊ะ: <span className="text-lg text-primary">{activeTable.label}</span>
+                  </span>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowTableSelectionModal(true)}>
+                    เปลี่ยน
+                  </Button>
+                </div>
+              )}
             </CardHeader>
 
             <CardContent className="flex-1 p-0 overflow-hidden relative">
@@ -925,16 +1289,42 @@ const POS = () => {
                   <Trash2 className="mr-2 h-4 w-4" />
                   ล้าง
                 </Button>
-                <Button
-                  className="col-span-2 h-12 text-lg font-bold shadow-lg shadow-primary/20"
-                  size="lg"
-                  variant="success"
-                  onClick={openPaymentModal}
-                  disabled={currentOrder.items.length === 0}
-                >
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  ชำระเงิน
-                </Button>
+
+                {orderType === 'dine-in' ? (
+                  <div className="col-span-2 flex gap-2">
+                    {!currentOrderId ? (
+                      <Button
+                        className="w-full h-12 text-lg font-bold shadow-md shadow-green-500/20 min-w-0"
+                        variant="success"
+                        onClick={saveTableOrder}
+                        disabled={currentOrder.items.length === 0 || !activeTable}
+                      >
+                        <Save className="mr-2 h-5 w-5 shrink-0" /> <span className="truncate">ยืนยันออเดอร์</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full h-12 text-lg font-bold shadow-lg shadow-green-500/20 min-w-0"
+                        size="lg"
+                        variant="success"
+                        onClick={openPaymentModal}
+                      >
+                        <CreditCard className="mr-2 h-5 w-5 shrink-0" />
+                        <span className="truncate">เช็คบิล</span>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    className="col-span-2 h-12 text-lg font-bold shadow-lg shadow-primary/20"
+                    size="lg"
+                    variant="success"
+                    onClick={openPaymentModal}
+                    disabled={currentOrder.items.length === 0}
+                  >
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    ชำระเงิน
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
@@ -1045,6 +1435,43 @@ const POS = () => {
                 <Printer className="mr-2 h-4 w-4" /> พิมพ์
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Table Selection Modal */}
+      <Dialog open={showTableSelectionModal} onOpenChange={setShowTableSelectionModal}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <Armchair className="w-6 h-6 text-primary" /> เลือกโต๊ะสำหรับออเดอร์
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 py-4 max-h-[60vh] overflow-y-auto">
+            {tables.map(table => (
+              <Button
+                key={table.id}
+                variant={table.status === 'occupied' ? "secondary" : "outline"}
+                className={cn(
+                  "h-24 flex flex-col gap-2 relative border-2",
+                  table.status === 'occupied' ? "border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20" : "border-primary/20 hover:border-primary hover:bg-primary/5",
+                  activeTable?.id === table.id && "ring-2 ring-primary ring-offset-2 border-primary"
+                )}
+                onClick={() => handleTableSelectionFromModal(table)}
+              >
+                <span className="text-xl font-bold">{table.label}</span>
+                <Badge variant={table.status === 'occupied' ? "warning" : "success"} className="text-[10px] px-1 py-0 h-5">
+                  {table.status === 'occupied' ? 'ไม่ว่าง' : 'ว่าง'}
+                </Badge>
+              </Button>
+            ))}
+            {tables.length === 0 && (
+              <div className="col-span-full py-12 text-center text-muted-foreground">
+                ยังไม่มีข้อมูลโต๊ะ
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowTableSelectionModal(false)}>ปิด</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

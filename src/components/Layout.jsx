@@ -5,7 +5,8 @@ import {
   ShoppingCart,
   History,
   Menu as MenuIcon,
-  BarChart3
+  BarChart3,
+  LayoutGrid
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,10 +15,13 @@ const POS = lazy(() => import('./POS'));
 const PurchaseHistory = lazy(() => import('./Kitchen')); // Changed from Kitchen to PurchaseHistory
 const Menu = lazy(() => import('./Menu'));
 const Reports = lazy(() => import('./Reports'));
+const TableManagement = lazy(() => import('./TableManagement'));
 const SupabaseStorageManager = lazy(() => import('./SupabaseStorageManager'));
 
 const Layout = () => {
-  const [activeTab, setActiveTab] = useState('pos');
+  const [activeTab, setActiveTab] = useState('pos'); // 👈 เพิ่มบรรทัดนี้
+  const [selectedTable, setSelectedTable] = useState(null);
+
 
   const renderActiveTab = () => {
     // Loading fallback component
@@ -31,7 +35,10 @@ const Layout = () => {
       case 'pos':
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <POS />
+            <POS
+              initialTable={selectedTable}
+              onTableHandled={() => setSelectedTable(null)}
+            />
           </Suspense>
         );
       case 'purchase-history':
@@ -44,6 +51,15 @@ const Layout = () => {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <Menu />
+          </Suspense>
+        );
+      case 'tables':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <TableManagement onNavigateToPOS={(table) => {
+              setSelectedTable(table);
+              setActiveTab('pos');
+            }} />
           </Suspense>
         );
       case 'report':
@@ -105,6 +121,7 @@ const Layout = () => {
             </h1>
             <div className="flex flex-wrap gap-2">
               <NavButton tab="pos" label="POS" icon={ShoppingCart} />
+              <NavButton tab="tables" label="โต๊ะ" icon={LayoutGrid} />
               <NavButton tab="purchase-history" label="ประวัติการซื้อ" icon={History} />
               <NavButton tab="menu" label="เมนู" icon={MenuIcon} />
               <NavButton tab="report" label="รายงาน" icon={BarChart3} />
